@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { HelpButton } from "@/components/admin/help-button";
+import { ADMIN_PRODUCTS_MAX, ADMIN_INSUMOS_MAX } from "@/lib/list-limits";
+import { asClient } from "@/lib/decimal";
 import { FichaTecnicaForm } from "./ficha-tecnica-form";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +26,7 @@ export default async function FichaTecnicaPage() {
       prisma.product.findMany({
         where: { isDeleted: false },
         orderBy: { title: "asc" },
+        take: ADMIN_PRODUCTS_MAX,
         select: {
           id: true,
           title: true,
@@ -36,6 +39,17 @@ export default async function FichaTecnicaPage() {
           category: { select: { id: true, name: true } },
           pricingStrategy: true,
           pricingValue: true,
+          version: true,
+          additionalCosts: {
+            orderBy: { sortOrder: "asc" },
+            select: {
+              label: true,
+              kind: true,
+              value: true,
+              isPackaging: true,
+              sortOrder: true,
+            },
+          },
           compositionItems: {
             orderBy: [{ sequenceOrder: "asc" }, { createdAt: "asc" }],
             select: {
@@ -66,6 +80,7 @@ export default async function FichaTecnicaPage() {
       }),
       prisma.stone.findMany({
         orderBy: { name: "asc" },
+        take: ADMIN_INSUMOS_MAX,
         select: {
           id: true,
           name: true,
@@ -78,6 +93,7 @@ export default async function FichaTecnicaPage() {
       }),
       prisma.chain.findMany({
         orderBy: { name: "asc" },
+        take: ADMIN_INSUMOS_MAX,
         select: {
           id: true,
           name: true,
@@ -90,6 +106,7 @@ export default async function FichaTecnicaPage() {
       }),
       prisma.wire.findMany({
         orderBy: { name: "asc" },
+        take: ADMIN_INSUMOS_MAX,
         select: {
           id: true,
           name: true,
@@ -110,6 +127,7 @@ export default async function FichaTecnicaPage() {
       }),
       prisma.metalAlloy.findMany({
         orderBy: { name: "asc" },
+        take: ADMIN_INSUMOS_MAX,
         select: {
           id: true,
           name: true,
@@ -124,6 +142,7 @@ export default async function FichaTecnicaPage() {
       prisma.supplyPattern.findMany({
         where: { isActive: true },
         orderBy: { name: "asc" },
+        take: ADMIN_INSUMOS_MAX,
         select: {
           id: true,
           name: true,
@@ -202,13 +221,13 @@ export default async function FichaTecnicaPage() {
       </div>
 
       <FichaTecnicaForm
-        products={products}
+        products={asClient(products)}
         categories={categories}
-        stones={stones}
-        chains={chains}
-        wires={wires}
-        alloys={alloys}
-        patterns={patterns}
+        stones={asClient(stones)}
+        chains={asClient(chains)}
+        wires={asClient(wires)}
+        alloys={asClient(alloys)}
+        patterns={asClient(patterns)}
       />
     </div>
   );

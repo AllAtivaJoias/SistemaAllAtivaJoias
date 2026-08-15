@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
+import { requireAdmin, AuthError } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +14,11 @@ export const dynamic = "force-dynamic";
  * - default → lista para o painel (SEM composição — impressão busca sob demanda).
  */
 export async function GET(request: Request): Promise<NextResponse> {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  try {
+    await requireAdmin();
+  } catch (error) {
+    const status = error instanceof AuthError ? error.status : 401;
+    return NextResponse.json({ error: "Não autorizado." }, { status });
   }
 
   const mode = new URL(request.url).searchParams.get("mode");
@@ -72,7 +75,9 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     return NextResponse.json({ count: serialized.length, orders: serialized });
   } catch (error) {
-    console.error("pending orders:", error);
+    logger.error("pending_orders.failed", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
     return NextResponse.json(
       { error: "Erro ao consultar pedidos.", count: 0, orders: [] },
       { status: 500 }

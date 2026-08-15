@@ -1,25 +1,24 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
+import { requireAdmin, AuthError } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { toWorkOrderData } from "@/lib/receipt";
-import { REQUISITION_MATERIAL_SELECT } from "@/lib/material-requisition";
+import { asClient } from "@/lib/decimal";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-/**
- * Monta os dados de impressão (cliente + requisição de materiais) sob demanda.
- * Evita carregar a composição completa a cada ciclo de polling.
- */
 export async function GET(
   _request: Request,
   context: RouteContext
 ): Promise<NextResponse> {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  try {
+    await requireAdmin();
+  } catch (error) {
+    const status = error instanceof AuthError ? error.status : 401;
+    return NextResponse.json({ error: "Não autorizado." }, { status });
   }
 
   const { id } = await context.params;
@@ -43,17 +42,8 @@ export async function GET(
             quantity: true,
             priceAtTime: true,
             productTitle: true,
-            product: {
-              select: {
-                title: true,
-                compositionItems: {
-                  select: {
-                    quantityUsed: true,
-                    material: { select: REQUISITION_MATERIAL_SELECT },
-                  },
-                },
-              },
-            },
+            bomLines: true,
+            product: { select: { title: true } },
           },
         },
       },
@@ -66,9 +56,21 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(toWorkOrderData(order));
+    return NextResponse.json(
+      toWorkOrderData(
+        asClient({
+          ...order,
+          items: order.items.map((item) => ({
+            ...item,
+            product: { title: item.product.title, compositionItems: [] },
+          })),
+        })
+      )
+    );
   } catch (error) {
-    console.error("work-order:", error);
+    logger.error("work_order.failed", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
     return NextResponse.json(
       { error: "Erro ao montar a requisição de materiais." },
       { status: 500 }

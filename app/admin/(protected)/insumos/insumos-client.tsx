@@ -15,7 +15,12 @@ import {
   Wand2,
   X,
 } from "lucide-react";
+import type { Numbers } from "@/lib/decimal";
 import type { Chain, MetalAlloy, Stone } from "@prisma/client";
+
+type StoneDTO = Numbers<Stone>;
+type ChainDTO = Numbers<Chain>;
+type AlloyDTO = Numbers<MetalAlloy>;
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -168,9 +173,9 @@ function StonesPanel({
   onNew,
   onEdit,
 }: {
-  stones: Stone[];
+  stones: StoneDTO[];
   onNew: () => void;
-  onEdit: (stone: Stone) => void;
+  onEdit: (stone: StoneDTO) => void;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -671,10 +676,10 @@ function WiresPanel({
 // ─────────────────────────────────────────────────────────────
 
 interface InsumosClientProps {
-  stones: Stone[];
-  chains: Chain[];
+  stones: StoneDTO[];
+  chains: ChainDTO[];
   wires: WireRow[];
-  alloys: MetalAlloy[];
+  alloys: AlloyDTO[];
   patterns: SupplyPatternRow[];
 }
 
@@ -688,22 +693,22 @@ export function InsumosClient({
   const router = useRouter();
   const [panelToast, setPanelToast] = useState<PanelToast>(null);
   const [stoneOpen, setStoneOpen] = useState(false);
-  const [selectedStone, setSelectedStone] = useState<Stone | null>(null);
+  const [selectedStone, setSelectedStone] = useState<StoneDTO | null>(null);
 
   const [chainOpen, setChainOpen] = useState(false);
-  const [selectedChain, setSelectedChain] = useState<Chain | null>(null);
+  const [selectedChain, setSelectedChain] = useState<ChainDTO | null>(null);
 
   const [wireOpen, setWireOpen] = useState(false);
   const [selectedWire, setSelectedWire] = useState<WireRow | null>(null);
 
   const [alloyOpen, setAlloyOpen] = useState(false);
-  const [selectedAlloy, setSelectedAlloy] = useState<MetalAlloy | null>(null);
+  const [selectedAlloy, setSelectedAlloy] = useState<AlloyDTO | null>(null);
 
   function openNewStone() {
     setSelectedStone(null);
     setStoneOpen(true);
   }
-  function openEditStone(stone: Stone) {
+  function openEditStone(stone: StoneDTO) {
     setSelectedStone(stone);
     setStoneOpen(true);
   }
@@ -716,7 +721,7 @@ export function InsumosClient({
     setSelectedChain(null);
     setChainOpen(true);
   }
-  function openEditChain(chain: Chain) {
+  function openEditChain(chain: ChainDTO) {
     setSelectedChain(chain);
     setChainOpen(true);
   }
@@ -742,7 +747,7 @@ export function InsumosClient({
     setSelectedAlloy(null);
     setAlloyOpen(true);
   }
-  function openEditAlloy(alloy: MetalAlloy) {
+  function openEditAlloy(alloy: AlloyDTO) {
     setSelectedAlloy(alloy);
     setAlloyOpen(true);
   }

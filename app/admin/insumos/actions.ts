@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-guard";
+import { writeAuditLog } from "@/lib/audit";
 
 export type InsumoActionState = {
   error?: string;
@@ -15,6 +16,16 @@ export type InsumoActionState = {
 function revalidateAll() {
   revalidatePath("/admin/insumos");
   revalidatePath("/admin/ficha-tecnica");
+}
+
+function auditInsumo(
+  userId: string,
+  action: string,
+  entity: string,
+  entityId: string | null,
+  after?: unknown
+) {
+  void writeAuditLog({ userId, action, entity, entityId, after });
 }
 
 const optionalNumber = z
@@ -78,7 +89,7 @@ function zodError(err: z.ZodError): string {
 export async function saveStone(
   input: unknown
 ): Promise<InsumoActionState> {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const parsed = stoneSchema.safeParse(input);
   if (!parsed.success) return { error: zodError(parsed.error) };
@@ -88,10 +99,18 @@ export async function saveStone(
   try {
     if (id) {
       await prisma.stone.update({ where: { id }, data });
+      auditInsumo(session.user.id, "STONE_UPDATE", "Stone", id, {
+        name: data.name,
+        unitPrice: data.unitPrice,
+      });
       revalidateAll();
       return { success: true, message: "Pedra atualizada com sucesso." };
     }
-    await prisma.stone.create({ data });
+    const created = await prisma.stone.create({ data });
+    auditInsumo(session.user.id, "STONE_CREATE", "Stone", created.id, {
+      name: data.name,
+      unitPrice: data.unitPrice,
+    });
     revalidateAll();
     return { success: true, message: "Pedra cadastrada com sucesso." };
   } catch {
@@ -104,13 +123,14 @@ export async function saveStone(
 }
 
 export async function deleteStone(id: string): Promise<InsumoActionState> {
-  await requireAdmin();
+  const session = await requireAdmin();
   if (!id) return { error: "Pedra inválida." };
   try {
     await prisma.stone.delete({ where: { id } });
   } catch {
     return { error: "Não foi possível excluir a pedra." };
   }
+  auditInsumo(session.user.id, "STONE_DELETE", "Stone", id);
   revalidateAll();
   return { success: true, message: "Pedra excluída." };
 }
@@ -122,7 +142,7 @@ export async function deleteStone(id: string): Promise<InsumoActionState> {
 export async function saveChain(
   input: unknown
 ): Promise<InsumoActionState> {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const parsed = chainSchema.safeParse(input);
   if (!parsed.success) return { error: zodError(parsed.error) };
@@ -132,10 +152,18 @@ export async function saveChain(
   try {
     if (id) {
       await prisma.chain.update({ where: { id }, data });
+      auditInsumo(session.user.id, "CHAIN_UPDATE", "Chain", id, {
+        name: data.name,
+        pricePerCm: data.pricePerCm,
+      });
       revalidateAll();
       return { success: true, message: "Corrente atualizada com sucesso." };
     }
-    await prisma.chain.create({ data });
+    const created = await prisma.chain.create({ data });
+    auditInsumo(session.user.id, "CHAIN_CREATE", "Chain", created.id, {
+      name: data.name,
+      pricePerCm: data.pricePerCm,
+    });
     revalidateAll();
     return { success: true, message: "Corrente cadastrada com sucesso." };
   } catch {
@@ -148,13 +176,14 @@ export async function saveChain(
 }
 
 export async function deleteChain(id: string): Promise<InsumoActionState> {
-  await requireAdmin();
+  const session = await requireAdmin();
   if (!id) return { error: "Corrente inválida." };
   try {
     await prisma.chain.delete({ where: { id } });
   } catch {
     return { error: "Não foi possível excluir a corrente." };
   }
+  auditInsumo(session.user.id, "CHAIN_DELETE", "Chain", id);
   revalidateAll();
   return { success: true, message: "Corrente excluída." };
 }
@@ -164,7 +193,7 @@ export async function deleteChain(id: string): Promise<InsumoActionState> {
 // ─────────────────────────────────────────────────────────────
 
 export async function saveWire(input: unknown): Promise<InsumoActionState> {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const parsed = wireSchema.safeParse(input);
   if (!parsed.success) return { error: zodError(parsed.error) };
@@ -180,7 +209,7 @@ export async function saveWire(input: unknown): Promise<InsumoActionState> {
   }
 
   const weightPerCm = rest.weightPerCm ?? 0;
-  const pricePerCm = weightPerCm * alloy.pricePerGram;
+  const pricePerCm = weightPerCm * Number(alloy.pricePerGram);
 
   const data = {
     name: rest.name,
@@ -196,10 +225,18 @@ export async function saveWire(input: unknown): Promise<InsumoActionState> {
   try {
     if (id) {
       await prisma.wire.update({ where: { id }, data });
+      auditInsumo(session.user.id, "WIRE_UPDATE", "Wire", id, {
+        name: data.name,
+        pricePerCm: data.pricePerCm,
+      });
       revalidateAll();
       return { success: true, message: "Fio/chapa atualizado com sucesso." };
     }
-    await prisma.wire.create({ data });
+    const created = await prisma.wire.create({ data });
+    auditInsumo(session.user.id, "WIRE_CREATE", "Wire", created.id, {
+      name: data.name,
+      pricePerCm: data.pricePerCm,
+    });
     revalidateAll();
     return { success: true, message: "Fio/chapa cadastrado com sucesso." };
   } catch {
@@ -212,13 +249,14 @@ export async function saveWire(input: unknown): Promise<InsumoActionState> {
 }
 
 export async function deleteWire(id: string): Promise<InsumoActionState> {
-  await requireAdmin();
+  const session = await requireAdmin();
   if (!id) return { error: "Fio/chapa inválido." };
   try {
     await prisma.wire.delete({ where: { id } });
   } catch {
     return { error: "Não foi possível excluir o fio/chapa." };
   }
+  auditInsumo(session.user.id, "WIRE_DELETE", "Wire", id);
   revalidateAll();
   return { success: true, message: "Fio/chapa excluído." };
 }
@@ -230,7 +268,7 @@ export async function deleteWire(id: string): Promise<InsumoActionState> {
 export async function saveAlloy(
   input: unknown
 ): Promise<InsumoActionState> {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const parsed = alloySchema.safeParse(input);
   if (!parsed.success) return { error: zodError(parsed.error) };
@@ -251,15 +289,23 @@ export async function saveAlloy(
             where: { id: wire.id },
             data: {
               material: data.name,
-              pricePerCm: (wire.weightPerCm ?? 0) * data.pricePerGram,
+              pricePerCm: Number(wire.weightPerCm ?? 0) * data.pricePerGram,
             },
           });
         }
       });
+      auditInsumo(session.user.id, "ALLOY_UPDATE", "MetalAlloy", id, {
+        name: data.name,
+        pricePerGram: data.pricePerGram,
+      });
       revalidateAll();
       return { success: true, message: "Liga atualizada com sucesso." };
     }
-    await prisma.metalAlloy.create({ data });
+    const created = await prisma.metalAlloy.create({ data });
+    auditInsumo(session.user.id, "ALLOY_CREATE", "MetalAlloy", created.id, {
+      name: data.name,
+      pricePerGram: data.pricePerGram,
+    });
     revalidateAll();
     return { success: true, message: "Liga cadastrada com sucesso." };
   } catch {
@@ -272,13 +318,14 @@ export async function saveAlloy(
 }
 
 export async function deleteAlloy(id: string): Promise<InsumoActionState> {
-  await requireAdmin();
+  const session = await requireAdmin();
   if (!id) return { error: "Liga inválida." };
   try {
     await prisma.metalAlloy.delete({ where: { id } });
   } catch {
     return { error: "Não foi possível excluir a liga." };
   }
+  auditInsumo(session.user.id, "ALLOY_DELETE", "MetalAlloy", id);
   revalidateAll();
   return { success: true, message: "Liga excluída." };
 }

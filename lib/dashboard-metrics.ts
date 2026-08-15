@@ -145,7 +145,7 @@ async function getTopProducts(limit = 7): Promise<TopProduct[]> {
   }));
 }
 
-/** Receita por categoria nos últimos 30 dias (agregado no banco). */
+/** Receita por categoria no mês civil atual (agregado no banco). */
 async function getCategorySales(since: Date): Promise<CategorySales[]> {
   type Row = { category_name: string; revenue: number | string | null };
 
@@ -275,7 +275,7 @@ async function getWeeklyEvolution(since: Date): Promise<DailySales[]> {
 async function loadDashboardData(): Promise<DashboardData> {
   const startOfToday = getBrasiliaStartOfDay();
   const startOfWeek = subtractDays(startOfToday, 7);
-  const startOfMonth = subtractDays(startOfToday, 30);
+  const startOfMonth = getBrasiliaStartOfMonth();
 
   const [
     today,

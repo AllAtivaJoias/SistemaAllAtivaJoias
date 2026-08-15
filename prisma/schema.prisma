@@ -1,6 +1,6 @@
 // Prisma schema — AllAtiva Joias
-// Banco: PostgreSQL (funciona tanto localmente quanto na Vercel).
-// A conexão vem da variável de ambiente DATABASE_URL.
+// Banco: PostgreSQL.
+// Conexão: POSTGRES_PRISMA_URL (pooled) + POSTGRES_URL_NON_POOLING (direta).
 
 generator client {
   provider = "prisma-client-js"
@@ -10,6 +10,67 @@ datasource db {
   provider  = "postgresql"
   url       = env("POSTGRES_PRISMA_URL")
   directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+// ── Precisão monetária e física ──────────────────────────────
+// MONEY_2   Decimal(14,2)  totais em BRL (centavos)
+// MONEY_4   Decimal(14,4)  preços unitários (R$/g, R$/cm, R$/un)
+// QTY_4     Decimal(14,4)  pesos, quantidades, mm
+// PURITY_6  Decimal(8,6)   teor 0–1 (ex.: 0.750000)
+
+enum UserRole {
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  role         UserRole   @default(ADMIN)
+  isActive     Boolean    @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  auditLogs    AuditLog[]
+
+  @@index([email])
+  @@index([isActive])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  success   Boolean
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
 }
 
 model Category {
@@ -25,28 +86,26 @@ model Category {
 }
 
 model Product {
-  id               String            @id @default(cuid())
+  id               String                   @id @default(cuid())
   title            String
   description      String
   imageUrl         String
-  price            Float
-  costPrice        Float             @default(0)
-  isAvailable      Boolean           @default(true)
-  // Soft delete: produto some das listagens, mas permanece para o histórico de vendas.
-  isDeleted        Boolean           @default(false)
-  // Código interno (Ref / SKU) — uso administrativo/PDV; NÃO exibir na vitrine.
-  productCode      String?           @unique
-  // Peso total da peça (g) informado na Ficha Técnica.
-  totalWeightG     Float?
-  pricingStrategy  String? // markupPercent | marginPercent | fixedProfit | finalPrice
-  pricingValue     Float?
-  // Opcional: ao excluir a categoria, fica null (onDelete: SetNull).
+  price            Decimal                  @db.Decimal(14, 2)
+  costPrice        Decimal                  @default(0) @db.Decimal(14, 2)
+  isAvailable      Boolean                  @default(true)
+  isDeleted        Boolean                  @default(false)
+  productCode      String?                  @unique
+  totalWeightG     Decimal?                 @db.Decimal(14, 4)
+  pricingStrategy  String?
+  pricingValue     Decimal?                 @db.Decimal(14, 4)
+  version          Int                      @default(0)
   categoryId       String?
-  category         Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  category         Category?                @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   orderItems       OrderItem[]
   compositionItems CompositionItem[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  additionalCosts  ProductAdditionalCost[]
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
 
   @@index([categoryId])
   @@index([title])
@@ -56,27 +115,38 @@ model Product {
   @@index([categoryId, title])
 }
 
-// Insumos da ourivesaria: metais, gemas e componentes.
+model ProductAdditionalCost {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  label       String
+  kind        String // fixed | percent
+  value       Decimal  @db.Decimal(14, 4)
+  isPackaging Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([productId, sortOrder])
+}
+
 model Material {
   id               String            @id @default(cuid())
   name             String            @unique
-  type             String            @default("metal") // metal | gema | componente
-  purchasePrice    Float // custo do lote/compra fechada
-  purchaseQuantity Float // quantidade contida na compra
-  unit             String // g | ct | un | mg | cm | par
-  // Metadados estruturados p/ a Requisição de Materiais (compras). Opcionais:
-  // preenchidos pelos construtores da Ficha Técnica; nulos p/ itens avulsos.
-  attrCut          String? // pedra: modelo/lapidação
-  attrColor        String? // pedra: cor
-  attrSizeMm       Float? // pedra: tamanho (mm) / corrente: espessura (mm)
-  attrMaterial     String? // metal/corrente/fio: material base
-  attrMesh         String? // corrente: malha/modelo
-  attrProfile      String? // fio: perfil (redondo/chato...)
-  attrGauge        Float? // fio: bitola/medida
-  weightPerCm      Float? // corrente/fio: peso por cm (g)
-  purity           Float? // metal: teor da liga (0–1)
-  pureMetalName    String? // liga: metal nobre puro
-  alloyMetalName   String? // liga: pré-liga (adição)
+  type             String            @default("metal")
+  purchasePrice    Decimal           @db.Decimal(14, 4)
+  purchaseQuantity Decimal           @db.Decimal(14, 4)
+  unit             String
+  attrCut          String?
+  attrColor        String?
+  attrSizeMm       Decimal?          @db.Decimal(14, 4)
+  attrMaterial     String?
+  attrMesh         String?
+  attrProfile      String?
+  attrGauge        Decimal?          @db.Decimal(14, 4)
+  weightPerCm      Decimal?          @db.Decimal(14, 4)
+  purity           Decimal?          @db.Decimal(8, 6)
+  pureMetalName    String?
+  alloyMetalName   String?
   compositionItems CompositionItem[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -88,22 +158,18 @@ model Material {
   @@index([attrProfile])
 }
 
-// Composição da joia: quanto de cada material entra em uma peça.
 model CompositionItem {
   id              String         @id @default(cuid())
   productId       String
   product         Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
   materialId      String
   material        Material       @relation(fields: [materialId], references: [id], onDelete: Restrict)
-  quantityUsed    Float
-  // Ordem de cravação / uso (principalmente pedras).
+  quantityUsed    Decimal        @db.Decimal(14, 4)
   sequenceOrder   Int            @default(0)
-  // Categoria visual da linha na Ficha Técnica.
-  lineKind        String         @default("outro") // pedra | metal | corrente | fio | outro
-  // Auditoria: folha expandida a partir de uma Ordem × N (snapshot).
+  lineKind        String         @default("outro")
   sourcePatternId String?
   sourcePattern   SupplyPattern? @relation(fields: [sourcePatternId], references: [id], onDelete: SetNull)
-  patternQty      Float?
+  patternQty      Decimal?       @db.Decimal(14, 4)
   createdAt       DateTime       @default(now())
 
   @@unique([productId, materialId])
@@ -113,19 +179,14 @@ model CompositionItem {
   @@index([sourcePatternId])
 }
 
-// ─────────────────────────────────────────────────────────────
-// Biblioteca de Insumos da ourivesaria (módulo de engenharia de peças)
-// ─────────────────────────────────────────────────────────────
-
-// Pedras / gemas cadastradas para composição das joias.
 model Stone {
   id           String              @id @default(cuid())
   name         String
-  cut          String              @default("brilhante") // lapidação: navete, gota, brilhante...
-  color        String              @default("branco") // nome da cor (base p/ bolinha colorida)
-  sizeMm       Float? // tamanho em milímetros
-  weightCt     Float               @default(0) // peso por pedra em quilates (pontos = ct * 100)
-  unitPrice    Float               @default(0) // valor por unidade
+  cut          String              @default("brilhante")
+  color        String              @default("branco")
+  sizeMm       Decimal?            @db.Decimal(14, 4)
+  weightCt     Decimal             @default(0) @db.Decimal(14, 4)
+  unitPrice    Decimal             @default(0) @db.Decimal(14, 4)
   patternItems SupplyPatternItem[]
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
@@ -137,15 +198,14 @@ model Stone {
   @@index([cut, color, sizeMm])
 }
 
-// Correntes (malhas prontas) vendidas por cm ou unidade.
 model Chain {
   id           String              @id @default(cuid())
   name         String
-  mesh         String              @default("veneziana") // malha/modelo: veneziana, cartier...
+  mesh         String              @default("veneziana")
   material     String              @default("Ouro 18k")
-  thicknessMm  Float? // espessura em mm
-  weightPerCm  Float? // peso por cm (g)
-  pricePerCm   Float               @default(0) // valor por cm
+  thicknessMm  Decimal?            @db.Decimal(14, 4)
+  weightPerCm  Decimal?            @db.Decimal(14, 4)
+  pricePerCm   Decimal             @default(0) @db.Decimal(14, 4)
   patternItems SupplyPatternItem[]
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
@@ -155,18 +215,15 @@ model Chain {
   @@index([material])
 }
 
-// Fios e chapas (laminados) usados na confecção de garras, chatões etc.
-// Herdam o Preço Definido por Grama da Liga Base (Cadeia de Herança de Custos).
 model Wire {
   id           String              @id @default(cuid())
   name         String
-  material     String              @default("Ouro 18k") // espelho do nome da liga (denormalizado)
-  profile      String              @default("redondo") // redondo, quadrado, meia-cana, chato
-  gauge        Float               @default(0) // bitola/espessura em mm (0.60, 0.70...)
-  widthMm      Float? // largura (para perfil chato/laminado)
-  weightPerCm  Float? // peso por cm (g) — base do custo: g × pricePerGram da liga
-  // Cache legado (cm): weightPerCm × alloy.pricePerGram. Preferir calcular via liga.
-  pricePerCm   Float               @default(0)
+  material     String              @default("Ouro 18k")
+  profile      String              @default("redondo")
+  gauge        Decimal             @default(0) @db.Decimal(14, 4)
+  widthMm      Decimal?            @db.Decimal(14, 4)
+  weightPerCm  Decimal?            @db.Decimal(14, 4)
+  pricePerCm   Decimal             @default(0) @db.Decimal(14, 4)
   alloyId      String?
   alloy        MetalAlloy?         @relation(fields: [alloyId], references: [id], onDelete: SetNull)
   patternItems SupplyPatternItem[]
@@ -181,17 +238,15 @@ model Wire {
   @@index([profile, material, gauge])
 }
 
-// Ligas metálicas: teor + metais base + preço definido pelo Admin (R$/g).
 model MetalAlloy {
   id                  String              @id @default(cuid())
-  name                String // ex.: "Ouro 18k Amarelo (Au750)"
-  purity              Float               @default(0.75) // teor do metal nobre (0–1)
-  pureMetalName       String              @default("Ouro 24k") // metal nobre puro
-  pureMetalPricePerG  Float               @default(0) // R$/g do metal nobre puro (referência)
-  alloyMetalName      String              @default("Pré-liga (Prata/Cobre)") // liga de adição
-  alloyMetalPricePerG Float               @default(0) // R$/g da pré-liga (referência)
-  // Preço Definido por Grama — valor oficial usado em todo o ERP (fios, ficha, etc.).
-  pricePerGram        Float               @default(0)
+  name                String
+  purity              Decimal             @default(0.75) @db.Decimal(8, 6)
+  pureMetalName       String              @default("Ouro 24k")
+  pureMetalPricePerG  Decimal             @default(0) @db.Decimal(14, 4)
+  alloyMetalName      String              @default("Pré-liga (Prata/Cobre)")
+  alloyMetalPricePerG Decimal             @default(0) @db.Decimal(14, 4)
+  pricePerGram        Decimal             @default(0) @db.Decimal(14, 4)
   wires               Wire[]
   patternItems        SupplyPatternItem[]
   createdAt           DateTime            @default(now())
@@ -200,7 +255,6 @@ model MetalAlloy {
   @@index([name])
 }
 
-// Ordem / Kit / Padrão de insumos (sub-assembly reutilizável).
 model SupplyPattern {
   id               String              @id @default(cuid())
   name             String
@@ -215,15 +269,13 @@ model SupplyPattern {
   @@index([isActive])
 }
 
-// Linha da Ordem — aponta para a biblioteca (Stone/Wire/Chain/Alloy).
 model SupplyPatternItem {
   id            String        @id @default(cuid())
   patternId     String
   pattern       SupplyPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
-  // pedra | metal | corrente | fio
   itemKind      String
   sequenceOrder Int           @default(0)
-  quantity      Float // qty por 1 unidade da Ordem
+  quantity      Decimal       @db.Decimal(14, 4)
   stoneId       String?
   stone         Stone?        @relation(fields: [stoneId], references: [id], onDelete: Restrict)
   alloyId       String?
@@ -244,13 +296,17 @@ model SupplyPatternItem {
 model Order {
   id             String      @id @default(cuid())
   customerName   String
-  customerPhone  String? // WhatsApp da encomenda (opcional)
-  sellerName     String?     @map("waiterName") // vendedor(a) responsável
-  status         String      @default("PENDING") // PENDING | COMPLETED
-  totalAmount    Float
-  advancePayment Float       @default(0) // sinal pago antecipadamente
+  customerPhone  String?
+  sellerName     String?     @map("waiterName")
+  status         OrderStatus @default(PENDING)
+  totalAmount    Decimal     @db.Decimal(14, 2)
+  advancePayment Decimal     @default(0) @db.Decimal(14, 2)
+  version        Int         @default(0)
+  cancelledAt    DateTime?
+  cancelReason   String?
   items          OrderItem[]
   createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   @@index([createdAt])
   @@index([status])
@@ -259,19 +315,43 @@ model Order {
 }
 
 model OrderItem {
-  id           String  @id @default(cuid())
+  id           String              @id @default(cuid())
   orderId      String
-  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order        Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId    String
-  product      Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  product      Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
   quantity     Int
-  priceAtTime  Float
-  costAtTime   Float   @default(0)
-  // Snapshot no momento da venda — histórico independente do cadastro atual.
+  priceAtTime  Decimal             @db.Decimal(14, 2)
+  costAtTime   Decimal             @default(0) @db.Decimal(14, 2)
   productTitle String
   productCode  String?
+  bomLines     OrderItemBomLine[]
 
   @@index([orderId])
   @@index([productId])
   @@map("order_items")
+}
+
+/// Snapshot imutável da BOM no momento da venda.
+model OrderItemBomLine {
+  id            String    @id @default(cuid())
+  orderItemId   String
+  orderItem     OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  name          String
+  type          String
+  unit          String
+  quantityUsed  Decimal   @db.Decimal(14, 4)
+  attrCut       String?
+  attrColor     String?
+  attrSizeMm    Decimal?  @db.Decimal(14, 4)
+  attrMaterial  String?
+  attrMesh      String?
+  attrProfile   String?
+  attrGauge     Decimal?  @db.Decimal(14, 4)
+  weightPerCm   Decimal?  @db.Decimal(14, 4)
+  purity        Decimal?  @db.Decimal(8, 6)
+  pureMetalName String?
+  alloyMetalName String?
+
+  @@index([orderItemId])
 }

@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 const ZIRCONIA_MATERIAL = "Zircônia";
 
@@ -52,11 +52,15 @@ export function buildZirconiaMatrix(): Prisma.StoneCreateManyInput[] {
  * Popula a tabela Stone UMA ÚNICA VEZ.
  * Trava absoluta: se já existir qualquer pedra, interrompe sem inserir nada.
  */
-export async function seedStonesLibrary(
-  prisma: PrismaClient
-): Promise<SeedStonesResult> {
-  // 1) TRAVA — primeira linha lógica. Qualquer pedra existente = bloqueio total.
-  const existingCount = await prisma.stone.count();
+export async function seedStonesLibrary(db: {
+  stone: {
+    count: () => Promise<number>;
+    createMany: (args: {
+      data: Prisma.StoneCreateManyInput[];
+    }) => Promise<{ count: number }>;
+  };
+}): Promise<SeedStonesResult> {
+  const existingCount = await db.stone.count();
   if (existingCount > 0) {
     console.log(
       `⛔ Cadastro de pedras ignorado (bloqueado): já existem ${existingCount} pedra(s) cadastrada(s). Nenhuma inserção será feita.`
@@ -71,7 +75,7 @@ export async function seedStonesLibrary(
   );
 
   // 3) Bulk insert — uma única requisição (proibido loop com .create)
-  const result = await prisma.stone.createMany({ data });
+  const result = await db.stone.createMany({ data });
   console.log(`✅ ${result.count} pedras inseridas com sucesso.`);
   return { status: "seeded", insertedCount: result.count };
 }

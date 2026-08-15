@@ -1,38 +1,32 @@
-// Motor de cálculo da Ficha Técnica (precificação de joias).
-// Funções puras, sem dependência de React/UI, para facilitar testes.
+import { Decimal, roundTo, toNonNegativeDecimal } from "@/lib/decimal";
 
-// Unidades de ourivesaria:
-// g/mg → metais (ouro, prata); ct → gemas/diamantes (quilates);
-// un → componentes (fechos, correntes); cm → correntes por comprimento;
-// par → brincos.
 export const UNITS = ["g", "mg", "ct", "un", "cm", "par"] as const;
 export type Unit = (typeof UNITS)[number];
 
-// Tipo do material, para adaptar a seleção entre metais e gemas.
 export const MATERIAL_TYPES = ["metal", "gema", "componente"] as const;
 export type MaterialType = (typeof MATERIAL_TYPES)[number];
 
 export type PricingMode =
-  | "markupPercent" // 1. Lucro sobre custo % (marcação)
-  | "marginPercent" // 2. Margem de lucro %
-  | "fixedProfit" // 3. Valor fixo de lucro (R$)
-  | "finalPrice"; // 4. Informar preço final
+  | "markupPercent"
+  | "marginPercent"
+  | "fixedProfit"
+  | "finalPrice";
 
 export type MaterialLine = {
   name: string;
-  packagePrice: number; // custo do lote/compra fechada (R$)
-  packageQuantity: number; // quantidade contida na compra
+  packagePrice: number;
+  packageQuantity: number;
   unit: Unit;
-  quantityUsed: number; // quantidade usada na peça (mesma unidade)
+  quantityUsed: number;
 };
 
 export type AdditionalCostKind = "fixed" | "percent";
 
 export type AdditionalCost = {
   label: string;
-  kind: AdditionalCostKind; // fixed = R$ | percent = % sobre o preço de venda
+  kind: AdditionalCostKind;
   value: number;
-  isPackaging?: boolean; // marca custos de embalagem (para alertas)
+  isPackaging?: boolean;
 };
 
 export type PricingInput = {
@@ -44,106 +38,134 @@ export type PricingInput = {
 
 export type MaterialCost = {
   name: string;
-  quantityUsed: number; // quantidade usada na peça
-  unit: Unit; // unidade da quantidade usada
-  cost: number; // custo rateado na composição
-  sharePercent: number; // participação no custo da composição
+  quantityUsed: number;
+  unit: Unit;
+  cost: number;
+  sharePercent: number;
 };
 
 export type PricingResult = {
-  compositionCost: number; // custo dos materiais (metais + gemas + componentes)
-  additionalFixedCost: number; // soma dos custos adicionais fixos (R$)
-  additionalPercentRate: number; // soma dos percentuais (fração 0–1)
-  additionalPercentCost: number; // valor em R$ dos percentuais sobre o preço
-  packagingCost: number; // total marcado como embalagem (R$ fixo)
-  totalCost: number; // custo total (fixo + percentual sobre preço)
-  sellingPrice: number; // preço de venda sugerido/final
-  netProfit: number; // lucro líquido (R$)
-  marginPercent: number; // margem = lucro / preço * 100
-  markupPercent: number; // markup = lucro / custo * 100
+  compositionCost: number;
+  additionalFixedCost: number;
+  additionalPercentRate: number;
+  additionalPercentCost: number;
+  packagingCost: number;
+  totalCost: number;
+  sellingPrice: number;
+  netProfit: number;
+  marginPercent: number;
+  markupPercent: number;
   materialCosts: MaterialCost[];
   costliestMaterial: string | null;
-  isValid: boolean; // false quando a estratégia gera preço impossível
+  isValid: boolean;
 };
 
-const clampNonNegative = (value: number): number =>
-  Number.isFinite(value) && value > 0 ? value : 0;
+const ZERO = new Decimal(0);
+const HUNDRED = new Decimal(100);
+const MONEY_PLACES = 4;
+const PERCENT_PLACES = 4;
 
-/** Custo rateado de um material: (usado / lote) * preço do lote. */
+function d(value: unknown): Decimal {
+  return toNonNegativeDecimal(value);
+}
+
+function money(value: Decimal): number {
+  return roundTo(value, MONEY_PLACES).toNumber();
+}
+
+function pct(value: Decimal): number {
+  return roundTo(value, PERCENT_PLACES).toNumber();
+}
+
+/** Custo rateado: (usado / lote) × preço do lote. */
 export function computeMaterialCost(line: MaterialLine): number {
-  const packageQuantity = clampNonNegative(line.packageQuantity);
-  if (packageQuantity === 0) return 0;
-
-  const used = clampNonNegative(line.quantityUsed);
-  const price = clampNonNegative(line.packagePrice);
-
-  return (used / packageQuantity) * price;
+  return money(computeMaterialCostD(line));
 }
 
-/** Soma o custo de todos os materiais da composição da joia. */
+function computeMaterialCostD(line: MaterialLine): Decimal {
+  const packageQuantity = d(line.packageQuantity);
+  if (packageQuantity.lte(0)) return ZERO;
+  const used = d(line.quantityUsed);
+  const price = d(line.packagePrice);
+  return used.div(packageQuantity).mul(price);
+}
+
 export function computeCompositionCost(materials: MaterialLine[]): number {
-  return materials.reduce((sum, line) => sum + computeMaterialCost(line), 0);
+  return money(
+    materials.reduce((sum, line) => sum.add(computeMaterialCostD(line)), ZERO)
+  );
 }
 
-/**
- * Resolve o preço de venda de acordo com a estratégia, tratando o fato de
- * que custos percentuais (taxa de cartão, comissão) incidem sobre o próprio
- * preço de venda — o que gera uma dependência circular resolvida por álgebra.
- */
 function resolveSellingPrice(
-  baseCost: number,
-  percentRate: number,
+  baseCost: Decimal,
+  percentRate: Decimal,
   mode: PricingMode,
-  strategyValue: number
-): { price: number; isValid: boolean } {
-  const value = Number.isFinite(strategyValue) ? strategyValue : 0;
+  strategyValue: unknown
+): { price: Decimal; isValid: boolean } {
+  let value: Decimal;
+  try {
+    value = new Decimal(String(strategyValue ?? 0));
+    if (!value.isFinite()) value = ZERO;
+  } catch {
+    value = ZERO;
+  }
 
   switch (mode) {
     case "markupPercent": {
-      const m = value / 100;
-      const denominator = 1 - percentRate * (1 + m);
-      if (denominator <= 0) return { price: 0, isValid: false };
-      return { price: (baseCost * (1 + m)) / denominator, isValid: true };
+      const m = value.div(HUNDRED);
+      const denominator = new Decimal(1).minus(percentRate.mul(new Decimal(1).plus(m)));
+      if (denominator.lte(0)) return { price: ZERO, isValid: false };
+      return {
+        price: baseCost.mul(new Decimal(1).plus(m)).div(denominator),
+        isValid: true,
+      };
     }
     case "marginPercent": {
-      const mg = value / 100;
-      const denominator = 1 - percentRate - mg;
-      if (mg >= 1 || denominator <= 0) return { price: 0, isValid: false };
-      return { price: baseCost / denominator, isValid: true };
+      const mg = value.div(HUNDRED);
+      const denominator = new Decimal(1).minus(percentRate).minus(mg);
+      if (mg.gte(1) || denominator.lte(0)) {
+        return { price: ZERO, isValid: false };
+      }
+      return { price: baseCost.div(denominator), isValid: true };
     }
     case "fixedProfit": {
-      const denominator = 1 - percentRate;
-      if (denominator <= 0) return { price: 0, isValid: false };
-      return { price: (baseCost + value) / denominator, isValid: true };
+      const denominator = new Decimal(1).minus(percentRate);
+      if (denominator.lte(0)) return { price: ZERO, isValid: false };
+      return {
+        price: baseCost.plus(d(value)).div(denominator),
+        isValid: true,
+      };
     }
     case "finalPrice": {
-      return { price: clampNonNegative(value), isValid: value > 0 };
+      const price = d(value);
+      return { price, isValid: price.gt(0) };
     }
     default:
-      return { price: 0, isValid: false };
+      return { price: ZERO, isValid: false };
   }
 }
 
-/** Calcula o resultado financeiro completo da ficha técnica. */
 export function computePricing(input: PricingInput): PricingResult {
-  const compositionCost = computeCompositionCost(input.materials);
+  const compositionCost = (input.materials ?? []).reduce(
+    (sum, line) => sum.add(computeMaterialCostD(line)),
+    ZERO
+  );
 
-  let additionalFixedCost = 0;
-  let additionalPercentRate = 0;
-  let packagingCost = 0;
+  let additionalFixedCost = ZERO;
+  let additionalPercentRate = ZERO;
+  let packagingCost = ZERO;
 
-  for (const cost of input.additionalCosts) {
-    const value = clampNonNegative(cost.value);
+  for (const cost of input.additionalCosts ?? []) {
+    const value = d(cost.value);
     if (cost.kind === "fixed") {
-      additionalFixedCost += value;
-      if (cost.isPackaging) packagingCost += value;
+      additionalFixedCost = additionalFixedCost.plus(value);
+      if (cost.isPackaging) packagingCost = packagingCost.plus(value);
     } else {
-      additionalPercentRate += value / 100;
+      additionalPercentRate = additionalPercentRate.plus(value.div(HUNDRED));
     }
   }
 
-  const baseCost = compositionCost + additionalFixedCost;
-
+  const baseCost = compositionCost.plus(additionalFixedCost);
   const { price, isValid } = resolveSellingPrice(
     baseCost,
     additionalPercentRate,
@@ -151,22 +173,28 @@ export function computePricing(input: PricingInput): PricingResult {
     input.strategyValue
   );
 
-  const sellingPrice = clampNonNegative(price);
-  const additionalPercentCost = sellingPrice * additionalPercentRate;
-  const totalCost = baseCost + additionalPercentCost;
-  const netProfit = sellingPrice - totalCost;
+  const sellingPrice = d(price);
+  const additionalPercentCost = sellingPrice.mul(additionalPercentRate);
+  const totalCost = baseCost.plus(additionalPercentCost);
+  const netProfit = sellingPrice.minus(totalCost);
 
-  const marginPercent = sellingPrice > 0 ? (netProfit / sellingPrice) * 100 : 0;
-  const markupPercent = totalCost > 0 ? (netProfit / totalCost) * 100 : 0;
+  const marginPercent = sellingPrice.gt(0)
+    ? netProfit.div(sellingPrice).mul(HUNDRED)
+    : ZERO;
+  const markupPercent = totalCost.gt(0)
+    ? netProfit.div(totalCost).mul(HUNDRED)
+    : ZERO;
 
-  const materialCosts: MaterialCost[] = input.materials.map((line) => {
-    const cost = computeMaterialCost(line);
+  const materialCosts: MaterialCost[] = (input.materials ?? []).map((line) => {
+    const cost = computeMaterialCostD(line);
     return {
-      name: line.name.trim() || "Material",
-      quantityUsed: clampNonNegative(line.quantityUsed),
+      name: (line.name ?? "").trim() || "Material",
+      quantityUsed: d(line.quantityUsed).toNumber(),
       unit: line.unit,
-      cost,
-      sharePercent: compositionCost > 0 ? (cost / compositionCost) * 100 : 0,
+      cost: money(cost),
+      sharePercent: compositionCost.gt(0)
+        ? pct(cost.div(compositionCost).mul(HUNDRED))
+        : 0,
     };
   });
 
@@ -176,19 +204,18 @@ export function computePricing(input: PricingInput): PricingResult {
   );
 
   return {
-    compositionCost,
-    additionalFixedCost,
-    additionalPercentRate,
-    additionalPercentCost,
-    packagingCost,
-    totalCost,
-    sellingPrice,
-    netProfit,
-    marginPercent,
-    markupPercent,
+    compositionCost: money(compositionCost),
+    additionalFixedCost: money(additionalFixedCost),
+    additionalPercentRate: additionalPercentRate.toNumber(),
+    additionalPercentCost: money(additionalPercentCost),
+    packagingCost: money(packagingCost),
+    totalCost: money(totalCost),
+    sellingPrice: money(sellingPrice),
+    netProfit: money(netProfit),
+    marginPercent: pct(marginPercent),
+    markupPercent: pct(markupPercent),
     materialCosts,
-    costliestMaterial:
-      costliest && costliest.cost > 0 ? costliest.name : null,
+    costliestMaterial: costliest && costliest.cost > 0 ? costliest.name : null,
     isValid,
   };
 }
@@ -200,23 +227,26 @@ export type SimulationRow = {
   marginPercent: number;
 };
 
-/** Simula o preço para diferentes cenários de marcação (lucro sobre custo). */
 export function buildSimulation(
   baseCost: number,
   percentRate: number,
   scenarios: number[] = [50, 80, 100, 150, 200]
 ): SimulationRow[] {
+  const base = d(baseCost);
+  const rate = d(percentRate);
   return scenarios.map((markup) => {
-    const { price } = resolveSellingPrice(
-      baseCost,
-      percentRate,
-      "markupPercent",
-      markup
-    );
-    const totalCost = baseCost + price * percentRate;
-    const netProfit = price - totalCost;
-    const marginPercent = price > 0 ? (netProfit / price) * 100 : 0;
-    return { markupPercent: markup, sellingPrice: price, netProfit, marginPercent };
+    const { price } = resolveSellingPrice(base, rate, "markupPercent", markup);
+    const totalCost = base.plus(price.mul(rate));
+    const netProfit = price.minus(totalCost);
+    const marginPercent = price.gt(0)
+      ? netProfit.div(price).mul(HUNDRED)
+      : ZERO;
+    return {
+      markupPercent: markup,
+      sellingPrice: money(price),
+      netProfit: money(netProfit),
+      marginPercent: pct(marginPercent),
+    };
   });
 }
 
@@ -226,16 +256,17 @@ export type ProjectionRow = {
   profit: number;
 };
 
-/** Projeção de faturamento e lucro para volumes de venda. */
 export function buildProjection(
   sellingPrice: number,
   profitPerUnit: number,
   volumes: number[] = [5, 10, 25, 50]
 ): ProjectionRow[] {
+  const price = d(sellingPrice);
+  const profit = new Decimal(String(profitPerUnit ?? 0));
   return volumes.map((units) => ({
     units,
-    revenue: sellingPrice * units,
-    profit: profitPerUnit * units,
+    revenue: money(price.mul(units)),
+    profit: money(profit.mul(units)),
   }));
 }
 
@@ -244,7 +275,6 @@ export type FinancialAlert = {
   message: string;
 };
 
-/** Gera alertas/dicas financeiras a partir do resultado calculado. */
 export function buildAlerts(result: PricingResult): FinancialAlert[] {
   const alerts: FinancialAlert[] = [];
 

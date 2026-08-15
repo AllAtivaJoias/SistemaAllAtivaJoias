@@ -10,6 +10,9 @@ import {
   expandPattern,
   type ExpandablePattern,
 } from "@/lib/supply-pattern-expand";
+import { roundMoney2, roundMoney4, roundQty4, asClient } from "@/lib/decimal";
+import { writeAuditLog } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 
 export type FichaActionState = {
   error?: string;
@@ -51,9 +54,15 @@ export type SaveFichaInput = {
   sellingPrice: number;
   totalCost: number;
   totalWeightG?: number | null;
-  /** Linhas avulsas (já resolvidas). Ordens vêm em patternsApplied. */
+  expectedVersion?: number;
   materials: SaveFichaMaterial[];
   patternsApplied?: SaveFichaPatternApplied[];
+  additionalCosts?: {
+    label: string;
+    kind: "fixed" | "percent";
+    value: number;
+    isPackaging?: boolean;
+  }[];
 };
 
 const PATTERN_INCLUDE = {
@@ -72,7 +81,7 @@ const PATTERN_INCLUDE = {
   },
 } as const;
 
-const round2 = (value: number): number => Math.round(value * 100) / 100;
+const round2 = (value: number): number => roundMoney2(value);
 
 /**
  * Nome único de Material para gemas: evita que pedras com o mesmo nome comercial
@@ -127,8 +136,9 @@ function toSaveLine(
 export async function saveFichaTecnica(
   input: SaveFichaInput
 ): Promise<FichaActionState> {
+  let session;
   try {
-    await requireAdmin();
+    session = await requireAdmin();
   } catch {
     return { error: "Sessão expirada. Faça login novamente." };
   }
@@ -139,10 +149,27 @@ export async function saveFichaTecnica(
 
   const product = await prisma.product.findUnique({
     where: { id: input.productId, isDeleted: false },
-    select: { id: true },
+    select: {
+      id: true,
+      version: true,
+      price: true,
+      costPrice: true,
+      pricingStrategy: true,
+      pricingValue: true,
+    },
   });
   if (!product) {
     return { error: "Peça não encontrada." };
+  }
+
+  if (
+    typeof input.expectedVersion === "number" &&
+    input.expectedVersion !== product.version
+  ) {
+    return {
+      error:
+        "Esta ficha foi alterada por outra sessão. Recarregue a peça e tente novamente.",
+    };
   }
 
   // Expande Ordens no servidor (fonte da verdade — não confiar só no client).
@@ -170,7 +197,7 @@ export async function saveFichaTecnica(
       const expandable: ExpandablePattern = {
         id: pattern.id,
         name: pattern.name,
-        items: pattern.items,
+        items: asClient(pattern.items),
       };
       for (const leaf of expandPattern(expandable, stones)) {
         patternLines.push(toSaveLine(leaf));
@@ -282,6 +309,17 @@ export async function saveFichaTecnica(
           ? input.totalWeightG
           : null;
 
+    const additionalCosts = (input.additionalCosts ?? [])
+      .filter((cost) => cost.label.trim() && Number(cost.value) > 0)
+      .map((cost, index) => ({
+        productId: input.productId,
+        label: cost.label.trim().slice(0, 120),
+        kind: cost.kind === "percent" ? "percent" : "fixed",
+        value: roundMoney4(cost.value),
+        isPackaging: Boolean(cost.isPackaging),
+        sortOrder: index,
+      }));
+
     await prisma.$transaction([
       prisma.compositionItem.deleteMany({
         where: { productId: input.productId },
@@ -295,27 +333,61 @@ export async function saveFichaTecnica(
             data: {
               productId: input.productId,
               materialId,
-              quantityUsed,
+              quantityUsed: roundQty4(quantityUsed),
               sequenceOrder,
               lineKind,
               sourcePatternId,
-              patternQty,
+              patternQty: patternQty != null ? roundQty4(patternQty) : null,
             },
           })
       ),
+      prisma.productAdditionalCost.deleteMany({
+        where: { productId: input.productId },
+      }),
+      ...(additionalCosts.length > 0
+        ? [
+            prisma.productAdditionalCost.createMany({
+              data: additionalCosts,
+            }),
+          ]
+        : []),
       prisma.product.update({
-        where: { id: input.productId },
+        where: { id: input.productId, version: product.version },
         data: {
           price: round2(input.sellingPrice),
           costPrice: round2(input.totalCost),
           pricingStrategy: input.mode,
-          pricingValue: input.strategyValue,
+          pricingValue: roundMoney4(input.strategyValue),
           totalWeightG,
+          version: { increment: 1 },
         },
       }),
     ]);
+
+    await writeAuditLog({
+      userId: session.user.id,
+      action: "FICHA_SAVE",
+      entity: "Product",
+      entityId: input.productId,
+      before: {
+        price: product.price,
+        costPrice: product.costPrice,
+        pricingStrategy: product.pricingStrategy,
+        pricingValue: product.pricingValue,
+      },
+      after: {
+        price: round2(input.sellingPrice),
+        costPrice: round2(input.totalCost),
+        pricingStrategy: input.mode,
+        pricingValue: input.strategyValue,
+        additionalCosts: additionalCosts.length,
+      },
+    });
   } catch (error) {
-    console.error("saveFichaTecnica:", error);
+    logger.error("ficha.save_failed", {
+      productId: input.productId,
+      message: error instanceof Error ? error.message : "unknown",
+    });
     return { error: "Não foi possível salvar a ficha técnica." };
   }
 

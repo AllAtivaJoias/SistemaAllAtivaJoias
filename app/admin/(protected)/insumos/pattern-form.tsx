@@ -13,6 +13,11 @@ import {
   Trash2,
 } from "lucide-react";
 import type { Chain, MetalAlloy, Stone } from "@prisma/client";
+import type { Numbers } from "@/lib/decimal";
+
+type StoneDTO = Numbers<Stone>;
+type AlloyDTO = Numbers<MetalAlloy>;
+type ChainDTO = Numbers<Chain>;
 
 import {
   deleteSupplyPattern,
@@ -139,9 +144,9 @@ interface PatternFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pattern: SupplyPatternRow | null;
-  stones: Stone[];
-  alloys: MetalAlloy[];
-  chains: Chain[];
+  stones: StoneDTO[];
+  alloys: AlloyDTO[];
+  chains: ChainDTO[];
   wires: WireOption[];
   onSaved: (message: string) => void;
 }
@@ -595,9 +600,9 @@ export function PatternFormDialog({
 
 interface PatternsPanelProps {
   patterns: SupplyPatternRow[];
-  stones: Stone[];
-  alloys: MetalAlloy[];
-  chains: Chain[];
+  stones: StoneDTO[];
+  alloys: AlloyDTO[];
+  chains: ChainDTO[];
   wires: WireOption[];
   onToast: (toast: { type: "success" | "error"; message: string }) => void;
 }

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ProductCard } from "@/components/ProductCard";
+import { asClient } from "@/lib/decimal";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +79,7 @@ export default async function Home() {
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
                   {category.products.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                    <ProductCard key={product.id} product={asClient(product)} />
                   ))}
                 </div>
               </section>

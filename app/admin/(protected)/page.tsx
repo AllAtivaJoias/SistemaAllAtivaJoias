@@ -119,7 +119,7 @@ export default async function DashboardPage() {
 
             <div>
               <h3 className="mb-3 text-sm font-semibold text-slate-700">
-                Vendas por categoria (30 dias)
+                Vendas por categoria (mês civil)
               </h3>
               <CategorySalesList data={data.categorySales} />
             </div>
@@ -134,7 +134,7 @@ export default async function DashboardPage() {
             Catálogo Completo
           </CardTitle>
           <CardDescription>
-            Todas as peças cadastradas e seu desempenho nos últimos 30 dias.
+            Todas as peças cadastradas e seu desempenho no mês civil atual.
             Ordene por Vendas, Receita ou Lucro.
           </CardDescription>
         </CardHeader>

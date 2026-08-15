@@ -9,6 +9,8 @@
 // Ligas metálicas
 // ─────────────────────────────────────────────────────────────
 
+import { Decimal, roundTo, toNonNegativeDecimal } from "@/lib/decimal";
+
 export interface AlloyInput {
   /** Peso final desejado da liga (g). Ex.: 10g de Ouro 18k. */
   finalWeight: number;
@@ -58,31 +60,31 @@ export function purityToThousandths(purity: number): number {
  * O `finalWeight` apenas escala essa base de 1g (ex.: 10g → ×10).
  */
 export function computeAlloy(input: AlloyInput): AlloyResult {
-  const finalWeight = Math.max(input.finalWeight || 0, 0);
-  const purity = Math.min(Math.max(input.purity || 0, 0), 1);
+  const finalWeight = toNonNegativeDecimal(input.finalWeight);
+  let purity = toNonNegativeDecimal(input.purity);
+  if (purity.gt(1)) purity = new Decimal(1);
 
-  // Base unitária (1g de liga final) → escala pelo peso desejado
-  const pureWeight = finalWeight * purity;
-  const alloyWeight = finalWeight * (1 - purity);
+  const pureWeight = finalWeight.mul(purity);
+  const alloyWeight = finalWeight.mul(new Decimal(1).minus(purity));
+  const purePrice = toNonNegativeDecimal(input.pureMetalPricePerG);
+  const alloyPrice = toNonNegativeDecimal(input.alloyMetalPricePerG);
 
-  const pureCost = pureWeight * (input.pureMetalPricePerG || 0);
-  const alloyCost = alloyWeight * (input.alloyMetalPricePerG || 0);
-  const totalCost = pureCost + alloyCost;
-
-  // Custo por 1g: independe do peso desejado (é a herança oficial da mistura)
-  const costPerGram =
-    purity * (input.pureMetalPricePerG || 0) +
-    (1 - purity) * (input.alloyMetalPricePerG || 0);
+  const pureCost = pureWeight.mul(purePrice);
+  const alloyCost = alloyWeight.mul(alloyPrice);
+  const totalCost = pureCost.plus(alloyCost);
+  const costPerGram = purity.mul(purePrice).plus(
+    new Decimal(1).minus(purity).mul(alloyPrice)
+  );
 
   return {
-    finalWeight,
-    purity,
-    pureWeight,
-    alloyWeight,
-    pureCost,
-    alloyCost,
-    totalCost,
-    costPerGram,
+    finalWeight: finalWeight.toNumber(),
+    purity: purity.toNumber(),
+    pureWeight: roundTo(pureWeight, 4).toNumber(),
+    alloyWeight: roundTo(alloyWeight, 4).toNumber(),
+    pureCost: roundTo(pureCost, 4).toNumber(),
+    alloyCost: roundTo(alloyCost, 4).toNumber(),
+    totalCost: roundTo(totalCost, 4).toNumber(),
+    costPerGram: roundTo(costPerGram, 4).toNumber(),
   };
 }
 
@@ -96,30 +98,35 @@ export function wireCostFromAlloy(
   centimeters: number,
   pricePerGram: number
 ): { weightG: number; cost: number; pricePerCm: number } {
-  const cm = Math.max(centimeters || 0, 0);
-  const wpc = Math.max(weightPerCm || 0, 0);
-  const ppg = Math.max(pricePerGram || 0, 0);
-  const weightG = wpc * cm;
+  const cm = toNonNegativeDecimal(centimeters);
+  const wpc = toNonNegativeDecimal(weightPerCm);
+  const ppg = toNonNegativeDecimal(pricePerGram);
+  const weightG = wpc.mul(cm);
   return {
-    weightG,
-    cost: weightG * ppg,
-    pricePerCm: wpc * ppg,
+    weightG: roundTo(weightG, 4).toNumber(),
+    cost: roundTo(weightG.mul(ppg), 4).toNumber(),
+    pricePerCm: roundTo(wpc.mul(ppg), 4).toNumber(),
   };
 }
 
-/** Peso total (g) de um insumo com peso por cm informado. */
 export function lengthWeight(
   weightPerCm: number | null | undefined,
   centimeters: number
 ): number {
-  return Math.max(weightPerCm || 0, 0) * Math.max(centimeters || 0, 0);
+  return roundTo(
+    toNonNegativeDecimal(weightPerCm).mul(toNonNegativeDecimal(centimeters)),
+    4
+  ).toNumber();
 }
 
 export function lengthCost(
   pricePerCm: number | null | undefined,
   centimeters: number
 ): number {
-  return Math.max(pricePerCm || 0, 0) * Math.max(centimeters || 0, 0);
+  return roundTo(
+    toNonNegativeDecimal(pricePerCm).mul(toNonNegativeDecimal(centimeters)),
+    4
+  ).toNumber();
 }
 
 // ─────────────────────────────────────────────────────────────

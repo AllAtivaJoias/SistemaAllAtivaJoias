@@ -5,6 +5,11 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-guard";
+import { roundMoney2 } from "@/lib/decimal";
+import { writeAuditLog } from "@/lib/audit";
+import { logger } from "@/lib/logger";
+import { assertTransition } from "@/lib/order-status";
+import { REQUISITION_MATERIAL_SELECT } from "@/lib/material-requisition";
 
 export type OrderActionState = {
   error?: string;
@@ -25,7 +30,6 @@ export type CreateOrderInput = {
   items: CreateOrderItemInput[];
 };
 
-/** Mantém apenas os dígitos do telefone (ou null quando vazio). */
 function normalizePhone(value?: string): string | null {
   if (!value) return null;
   const digits = value.replace(/\D/g, "");
@@ -55,8 +59,9 @@ function revalidateOrders() {
 export async function createOrder(
   input: CreateOrderInput
 ): Promise<OrderActionState> {
+  let session;
   try {
-    await requireAdmin();
+    session = await requireAdmin();
   } catch {
     return { error: "Sessão expirada. Faça login novamente." };
   }
@@ -84,9 +89,19 @@ export async function createOrder(
         isAvailable: true,
         isDeleted: false,
       },
+      include: {
+        compositionItems: {
+          select: {
+            quantityUsed: true,
+            material: { select: REQUISITION_MATERIAL_SELECT },
+          },
+        },
+      },
     });
   } catch (error) {
-    console.error("createOrder find products:", error);
+    logger.error("order.create_find_products", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
     return { error: "Erro ao consultar produtos. Tente novamente." };
   }
 
@@ -101,25 +116,41 @@ export async function createOrder(
     return {
       productId: product.id,
       quantity: item.quantity,
-      priceAtTime: product.price,
-      costAtTime: product.costPrice,
+      priceAtTime: roundMoney2(product.price),
+      costAtTime: roundMoney2(product.costPrice),
       productTitle: product.title,
       productCode: product.productCode,
+      bomLines: {
+        create: product.compositionItems.map((comp) => ({
+          name: comp.material.name,
+          type: comp.material.type,
+          unit: comp.material.unit,
+          quantityUsed: Number(comp.quantityUsed),
+          attrCut: comp.material.attrCut,
+          attrColor: comp.material.attrColor,
+          attrSizeMm: comp.material.attrSizeMm,
+          attrMaterial: comp.material.attrMaterial,
+          attrMesh: comp.material.attrMesh,
+          attrProfile: comp.material.attrProfile,
+          attrGauge: comp.material.attrGauge,
+          weightPerCm: comp.material.weightPerCm,
+          purity: comp.material.purity,
+          pureMetalName: comp.material.pureMetalName,
+          alloyMetalName: comp.material.alloyMetalName,
+        })),
+      },
     };
   });
 
-  const totalAmount = orderItems.reduce(
-    (sum, item) => sum + item.priceAtTime * item.quantity,
-    0
+  const totalAmount = roundMoney2(
+    orderItems.reduce((sum, item) => sum + item.priceAtTime * item.quantity, 0)
   );
 
-  // Sinal: não pode ser negativo nem exceder o total do pedido.
   const rawAdvance = Number(input.advancePayment ?? 0);
   if (!Number.isFinite(rawAdvance) || rawAdvance < 0) {
     return { error: "O valor do sinal é inválido." };
   }
-  // Arredonda para centavos e compara com tolerância para evitar ruído de float.
-  const advancePayment = Math.round(rawAdvance * 100) / 100;
+  const advancePayment = roundMoney2(rawAdvance);
   if (advancePayment - totalAmount > 0.001) {
     return { error: "O sinal não pode ser maior que o total do pedido." };
   }
@@ -137,11 +168,21 @@ export async function createOrder(
       },
     });
 
+    await writeAuditLog({
+      userId: session.user.id,
+      action: "ORDER_CREATE",
+      entity: "Order",
+      entityId: order.id,
+      after: { totalAmount, itemCount: orderItems.length },
+    });
+
     revalidateOrders();
 
     return { success: true, orderId: order.id };
   } catch (error) {
-    console.error("createOrder:", error);
+    logger.error("order.create_failed", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
 
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -157,10 +198,10 @@ export async function createOrder(
   }
 }
 
-/** Marca o pedido como impresso/concluído e o move para o histórico. */
 export async function completeOrder(orderId: string): Promise<OrderActionState> {
+  let session;
   try {
-    await requireAdmin();
+    session = await requireAdmin();
   } catch {
     return { error: "Sessão expirada. Faça login novamente." };
   }
@@ -170,16 +211,101 @@ export async function completeOrder(orderId: string): Promise<OrderActionState> 
   }
 
   try {
-    await prisma.order.update({
+    const existing = await prisma.order.findUnique({
       where: { id: orderId },
-      data: { status: "COMPLETED" },
+      select: { id: true, status: true, version: true },
+    });
+    if (!existing) return { error: "Pedido não encontrado." };
+
+    assertTransition(existing.status, "COMPLETED");
+
+    const updated = await prisma.order.updateMany({
+      where: { id: orderId, status: "PENDING", version: existing.version },
+      data: { status: "COMPLETED", version: { increment: 1 } },
+    });
+
+    if (updated.count !== 1) {
+      return {
+        error:
+          "Não foi possível concluir o pedido (já alterado por outra sessão).",
+      };
+    }
+
+    await writeAuditLog({
+      userId: session.user.id,
+      action: "ORDER_COMPLETE",
+      entity: "Order",
+      entityId: orderId,
+      before: { status: existing.status },
+      after: { status: "COMPLETED" },
     });
 
     revalidateOrders();
 
     return { success: true, orderId };
   } catch (error) {
-    console.error("completeOrder:", error);
+    logger.error("order.complete_failed", {
+      orderId,
+      message: error instanceof Error ? error.message : "unknown",
+    });
     return { error: "Não foi possível concluir o pedido." };
+  }
+}
+
+export async function cancelOrder(
+  orderId: string,
+  reason?: string
+): Promise<OrderActionState> {
+  let session;
+  try {
+    session = await requireAdmin();
+  } catch {
+    return { error: "Sessão expirada. Faça login novamente." };
+  }
+
+  if (!orderId) return { error: "Pedido inválido." };
+
+  const cancelReason = (reason ?? "").trim().slice(0, 240) || "Cancelado pelo administrador.";
+
+  try {
+    const existing = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, status: true, version: true },
+    });
+    if (!existing) return { error: "Pedido não encontrado." };
+
+    assertTransition(existing.status, "CANCELLED");
+
+    const updated = await prisma.order.updateMany({
+      where: { id: orderId, status: "PENDING", version: existing.version },
+      data: {
+        status: "CANCELLED",
+        cancelledAt: new Date(),
+        cancelReason,
+        version: { increment: 1 },
+      },
+    });
+
+    if (updated.count !== 1) {
+      return { error: "Não foi possível cancelar o pedido." };
+    }
+
+    await writeAuditLog({
+      userId: session.user.id,
+      action: "ORDER_CANCEL",
+      entity: "Order",
+      entityId: orderId,
+      before: { status: existing.status },
+      after: { status: "CANCELLED", cancelReason },
+    });
+
+    revalidateOrders();
+    return { success: true, orderId };
+  } catch (error) {
+    logger.error("order.cancel_failed", {
+      orderId,
+      message: error instanceof Error ? error.message : "unknown",
+    });
+    return { error: "Não foi possível cancelar o pedido." };
   }
 }

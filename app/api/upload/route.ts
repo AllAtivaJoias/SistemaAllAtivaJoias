@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 
-import { auth } from "@/auth";
+import { requireAdmin, AuthError } from "@/lib/auth-guard";
+import { logger } from "@/lib/logger";
 
 const ALLOWED_CONTENT_TYPES = new Set([
   "image/jpeg",
@@ -14,6 +15,13 @@ const ALLOWED_CONTENT_TYPES = new Set([
 const MAX_SIZE_IN_BYTES = 4 * 1024 * 1024;
 
 export async function POST(request: Request): Promise<NextResponse> {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    const status = error instanceof AuthError ? error.status : 401;
+    return NextResponse.json({ error: "Não autorizado." }, { status });
+  }
+
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json(
       {
@@ -22,11 +30,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       },
       { status: 500 }
     );
-  }
-
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
   const formData = await request.formData();
@@ -57,7 +60,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     // A Blob store está configurada como privada, então enviamos com
     // access "private". O arquivo não fica acessível pela URL direta;
     // por isso servimos as imagens através da rota /api/file.
-    const blob = await put(file.name, file, {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "image";
+    const blob = await put(`products/${safeName}`, file, {
       access: "private",
       addRandomSuffix: true,
     });
@@ -68,8 +72,11 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json({ url });
   } catch (error) {
+    logger.error("upload.failed", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
     return NextResponse.json(
-      { error: (error as Error).message },
+      { error: "Falha no upload. Tente novamente." },
       { status: 500 }
     );
   }

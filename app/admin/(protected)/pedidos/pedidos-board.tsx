@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 
-import { completeOrder } from "@/app/admin/pedidos/actions";
+import { completeOrder, cancelOrder } from "@/app/admin/pedidos/actions";
 import {
   fetchWorkOrderData,
   usePendingOrders,
@@ -211,6 +211,29 @@ export function PedidosBoard() {
   }
 
   const visibleOrders = orders.filter((order) => !hiddenIds.has(order.id));
+
+  function handleCancel(orderId: string) {
+    setError(null);
+    setCompletingId(orderId);
+    setHiddenIds((current) => new Set(current).add(orderId));
+
+    startTransition(async () => {
+      const result = await cancelOrder(orderId);
+      setCompletingId(null);
+
+      if (result.error) {
+        setError(result.error);
+        setHiddenIds((current) => {
+          const next = new Set(current);
+          next.delete(orderId);
+          return next;
+        });
+        return;
+      }
+
+      refresh();
+    });
+  }
 
   function handleComplete(orderId: string) {
     setError(null);
@@ -415,7 +438,16 @@ export function PedidosBoard() {
                       </p>
                     )}
                   </div>
-                  <Button
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleCancel(order.id)}
+                      disabled={isCompleting}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
                     type="button"
                     onClick={() => handleComplete(order.id)}
                     disabled={isCompleting}
@@ -433,6 +465,7 @@ export function PedidosBoard() {
                       </>
                     )}
                   </Button>
+                  </div>
                 </div>
               </div>
             );

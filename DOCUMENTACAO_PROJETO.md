@@ -2,8 +2,11 @@
 
 **Projeto:** `allativa-joias` (package.json)  
 **Versão do package:** `0.1.0`  
-**Data desta análise:** 14 de agosto de 2026  
-**Escopo:** código-fonte real do repositório. Comportamentos inventados foram evitados. Onde a evidência no código é incompleta, está marcado com ⚠️.
+**Data da análise original:** 14 de agosto de 2026  
+
+> **Atualização (15 de agosto de 2026):** o endurecimento de produção alterou deploy, autenticação, tipos monetários e persistência da ficha/BOM. Para o estado **atual** do código, use `README.md`, `docs/DEPLOY.md` e `docs/BACKUP.md`. Trechos abaixo que citam `db push --accept-data-loss`, senha em plaintext ou `ADMIN_PASSWORD` como login contínuo estão **obsoletos**.
+
+**Escopo da análise original:** código-fonte real do repositório naquela data.
 
 **Legenda de certeza**
 

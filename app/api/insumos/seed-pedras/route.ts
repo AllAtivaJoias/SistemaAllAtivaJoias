@@ -1,20 +1,18 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
+import { requireAdmin, AuthError } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { seedStonesLibrary } from "@/prisma/stones-library";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
-/**
- * POST /api/insumos/seed-pedras
- * Popula a biblioteca base de zircônias (uma única vez).
- * Autenticação obrigatória + trava no backend se já houver pedras.
- */
 export async function POST(): Promise<NextResponse> {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  try {
+    await requireAdmin();
+  } catch (error) {
+    const status = error instanceof AuthError ? error.status : 401;
+    return NextResponse.json({ error: "Não autorizado." }, { status });
   }
 
   try {
@@ -37,7 +35,9 @@ export async function POST(): Promise<NextResponse> {
       message: `${result.insertedCount} pedras inseridas com sucesso.`,
     });
   } catch (error) {
-    console.error("Erro ao popular catálogo de pedras:", error);
+    logger.error("seed_stones.failed", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
     return NextResponse.json(
       { error: "Não foi possível popular o catálogo de pedras." },
       { status: 500 }

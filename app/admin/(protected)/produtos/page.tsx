@@ -3,6 +3,8 @@ import { Plus } from "lucide-react";
 import { HelpButton } from "@/components/admin/help-button";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
+import { ADMIN_PRODUCTS_MAX } from "@/lib/list-limits";
+import { asClient } from "@/lib/decimal";
 import { ProductFormSheet } from "./product-form-sheet";
 import { ProdutosTable } from "./produtos-table";
 
@@ -13,6 +15,7 @@ export default async function ProdutosPage() {
     prisma.product.findMany({
       where: { isDeleted: false },
       orderBy: [{ category: { order: "asc" } }, { title: "asc" }],
+      take: ADMIN_PRODUCTS_MAX,
       select: {
         id: true,
         title: true,
@@ -73,7 +76,7 @@ export default async function ProdutosPage() {
         </div>
       </div>
 
-      <ProdutosTable products={products} categories={categories} />
+      <ProdutosTable products={asClient(products)} categories={categories} />
     </div>
   );
 }

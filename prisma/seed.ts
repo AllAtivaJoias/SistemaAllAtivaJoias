@@ -5,8 +5,12 @@ import { seedStonesLibrary } from "./stones-library";
 const prisma = new PrismaClient();
 
 /**
- * Dados iniciais do catálogo da AllAtiva Joias — peças de exemplo
- * organizadas por categoria para demonstração do sistema.
+ * Seed de DEMONSTRAÇÃO.
+ *
+ * APAGA categorias, produtos e insumos de catálogo (`deleteMany`) antes de
+ * inserir dados de exemplo. NÃO execute em produção.
+ *
+ * Uso local: `npm run db:seed`
  */
 const seedData = [
   {
@@ -237,7 +241,7 @@ async function main() {
         gauge: 0.45,
         widthMm: 2,
         weightPerCm: 0.06,
-        pricePerCm: 0.06 * (ouro18?.pricePerGram ?? 380),
+        pricePerCm: 0.06 * Number(ouro18?.pricePerGram ?? 380),
         alloyId: ouro18?.id ?? null,
       },
       {
@@ -246,7 +250,7 @@ async function main() {
         profile: "redondo",
         gauge: 0.6,
         weightPerCm: 0.08,
-        pricePerCm: 0.08 * (ouro18?.pricePerGram ?? 380),
+        pricePerCm: 0.08 * Number(ouro18?.pricePerGram ?? 380),
         alloyId: ouro18?.id ?? null,
       },
       {
@@ -255,7 +259,7 @@ async function main() {
         profile: "meia-cana",
         gauge: 0.7,
         weightPerCm: 0.05,
-        pricePerCm: 0.05 * (prata?.pricePerGram ?? 6),
+        pricePerCm: 0.05 * Number(prata?.pricePerGram ?? 6),
         alloyId: prata?.id ?? null,
       },
     ],

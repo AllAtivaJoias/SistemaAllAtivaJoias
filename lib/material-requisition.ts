@@ -171,11 +171,11 @@ function wireLabel(m: RequisitionMaterial): string {
 }
 
 function isWire(m: RequisitionMaterial): boolean {
-  return m.unit === "cm" && (Boolean(m.attrProfile) || Boolean(m.attrGauge));
+  return Boolean(m.attrProfile) || Boolean(m.attrGauge);
 }
 
 function isChain(m: RequisitionMaterial): boolean {
-  return m.unit === "cm" && Boolean(m.attrMesh);
+  return Boolean(m.attrMesh) && !isWire(m);
 }
 
 function isAlloy(m: RequisitionMaterial): boolean {
@@ -250,13 +250,23 @@ export function calculateMaterialsForOrder(
         const key = `${(m.attrMaterial ?? "")}|${(m.attrProfile ?? "")}|${
           m.attrGauge ?? ""
         }|${label.toLowerCase()}`;
-        const grams = (m.weightPerCm ?? 0) * used;
+        const unit = (m.unit || "").toLowerCase();
+        const wpc = m.weightPerCm ?? 0;
+        let cm = used;
+        let grams = wpc * used;
+        if (unit === "g" && wpc > 0) {
+          grams = used;
+          cm = used / wpc;
+        } else if (unit === "g") {
+          grams = used;
+          cm = 0;
+        }
         const existing = wires.get(key);
         if (existing) {
-          existing.cm += used;
+          existing.cm += cm;
           existing.grams += grams;
         } else {
-          wires.set(key, { key, label, cm: used, grams });
+          wires.set(key, { key, label, cm, grams });
         }
         continue;
       }

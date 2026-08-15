@@ -1,6 +1,7 @@
 import { HelpButton } from "@/components/admin/help-button";
 import { prisma } from "@/lib/prisma";
 import { PdvClient } from "./pdv-client";
+import { asClient } from "@/lib/decimal";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default async function NovoPedidoPage() {
     title: product.title,
     description: product.description,
     productCode: product.productCode,
-    price: product.price,
+    price: asClient(product.price),
     imageUrl: product.imageUrl,
     categoryName: product.category?.name ?? "Sem categoria",
   }));

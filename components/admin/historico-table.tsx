@@ -28,6 +28,23 @@ export type HistoricoOrderRow = {
   items: {
     quantity: number;
     priceAtTime: number;
+    bomLines?: {
+      quantityUsed: number;
+      name: string;
+      type: string;
+      unit: string;
+      attrCut?: string | null;
+      attrColor?: string | null;
+      attrSizeMm?: number | null;
+      attrMaterial?: string | null;
+      attrMesh?: string | null;
+      attrProfile?: string | null;
+      attrGauge?: number | null;
+      weightPerCm?: number | null;
+      purity?: number | null;
+      pureMetalName?: string | null;
+      alloyMetalName?: string | null;
+    }[];
     product: { title: string; compositionItems: RequisitionCompositionItem[] };
   }[];
 };

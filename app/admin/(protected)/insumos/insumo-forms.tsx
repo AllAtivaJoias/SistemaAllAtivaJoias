@@ -5,7 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { CheckCircle2, Loader2, X } from "lucide-react";
+import type { Numbers } from "@/lib/decimal";
 import type { Chain, MetalAlloy, Stone } from "@prisma/client";
+
+type StoneDTO = Numbers<Stone>;
+type ChainDTO = Numbers<Chain>;
+type AlloyDTO = Numbers<MetalAlloy>;
 
 import {
   saveStone,
@@ -176,7 +181,7 @@ const emptyStone = (): StoneFormValues => ({
   unitPrice: 0,
 });
 
-function stoneToValues(stone: Stone): StoneFormValues {
+function stoneToValues(stone: StoneDTO): StoneFormValues {
   return {
     id: stone.id,
     name: stone.name,
@@ -196,7 +201,7 @@ export function StoneFormDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  stone?: Stone | null;
+  stone?: StoneDTO | null;
   trigger?: React.ReactNode;
 }) {
   const isEditing = Boolean(stone?.id);
@@ -379,7 +384,7 @@ const emptyChain = (): ChainFormValues => ({
   pricePerCm: 0,
 });
 
-function chainToValues(chain: Chain): ChainFormValues {
+function chainToValues(chain: ChainDTO): ChainFormValues {
   return {
     id: chain.id,
     name: chain.name,
@@ -399,7 +404,7 @@ export function ChainFormDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  chain?: Chain | null;
+  chain?: ChainDTO | null;
   trigger?: React.ReactNode;
 }) {
   const isEditing = Boolean(chain?.id);
@@ -850,7 +855,7 @@ const emptyAlloy = (): AlloyFormValues => ({
   pricePerGram: 0,
 });
 
-function alloyToValues(alloy: MetalAlloy): AlloyFormValues {
+function alloyToValues(alloy: AlloyDTO): AlloyFormValues {
   return {
     id: alloy.id,
     name: alloy.name,
@@ -871,7 +876,7 @@ export function AlloyFormDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  alloy?: MetalAlloy | null;
+  alloy?: AlloyDTO | null;
   trigger?: React.ReactNode;
 }) {
   const isEditing = Boolean(alloy?.id);

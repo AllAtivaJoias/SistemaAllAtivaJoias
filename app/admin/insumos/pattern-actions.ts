@@ -5,6 +5,8 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-guard";
+import { writeAuditLog } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 
 export type PatternActionState = {
   error?: string;
@@ -97,8 +99,9 @@ function normalizeItem(item: z.infer<typeof patternItemSchema>) {
 export async function saveSupplyPattern(
   input: unknown
 ): Promise<PatternActionState> {
+  let session;
   try {
-    await requireAdmin();
+    session = await requireAdmin();
   } catch {
     return { error: "Sessão expirada. Faça login novamente." };
   }
@@ -131,6 +134,13 @@ export async function saveSupplyPattern(
           })),
         });
       });
+      await writeAuditLog({
+        userId: session.user.id,
+        action: "PATTERN_UPDATE",
+        entity: "SupplyPattern",
+        entityId: id,
+        after: { name, itemCount: normalized.length },
+      });
       revalidateAll();
       return {
         success: true,
@@ -150,6 +160,13 @@ export async function saveSupplyPattern(
       },
       select: { id: true },
     });
+    await writeAuditLog({
+      userId: session.user.id,
+      action: "PATTERN_CREATE",
+      entity: "SupplyPattern",
+      entityId: created.id,
+      after: { name, itemCount: normalized.length },
+    });
     revalidateAll();
     return {
       success: true,
@@ -157,7 +174,9 @@ export async function saveSupplyPattern(
       id: created.id,
     };
   } catch (error) {
-    console.error("saveSupplyPattern:", error);
+    logger.error("pattern.save_failed", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
     return {
       error: id
         ? "Não foi possível atualizar a ordem."
@@ -169,8 +188,9 @@ export async function saveSupplyPattern(
 export async function deleteSupplyPattern(
   id: string
 ): Promise<PatternActionState> {
+  let session;
   try {
-    await requireAdmin();
+    session = await requireAdmin();
   } catch {
     return { error: "Sessão expirada. Faça login novamente." };
   }
@@ -181,6 +201,12 @@ export async function deleteSupplyPattern(
   } catch {
     return { error: "Não foi possível excluir a ordem." };
   }
+  await writeAuditLog({
+    userId: session.user.id,
+    action: "PATTERN_DELETE",
+    entity: "SupplyPattern",
+    entityId: id,
+  });
   revalidateAll();
   return { success: true, message: "Ordem excluída." };
 }

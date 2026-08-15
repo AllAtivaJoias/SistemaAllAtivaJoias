@@ -97,6 +97,14 @@ type ProductOption = {
   category: { id: string; name: string } | null;
   pricingStrategy: string | null;
   pricingValue: number | null;
+  version: number;
+  additionalCosts: {
+    label: string;
+    kind: string;
+    value: number;
+    isPackaging: boolean;
+    sortOrder: number;
+  }[];
   compositionItems: {
     quantityUsed: number;
     sequenceOrder: number;
@@ -553,7 +561,7 @@ export function FichaTecnicaForm({
         correntes: [],
         fios: [],
         ordens: [],
-        additionalCosts: getValues("additionalCosts"),
+        additionalCosts: [],
         mode: "markupPercent",
         strategyValue: 100,
       });
@@ -655,7 +663,15 @@ export function FichaTecnicaForm({
       correntes,
       fios,
       ordens,
-      additionalCosts: getValues("additionalCosts"),
+      additionalCosts: (product.additionalCosts ?? [])
+        .slice()
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((cost) => ({
+          label: cost.label,
+          kind: cost.kind === "percent" ? ("percent" as const) : ("fixed" as const),
+          value: Number(cost.value) || 0,
+          isPackaging: Boolean(cost.isPackaging),
+        })),
       mode: (product.pricingStrategy as PricingMode) ?? "markupPercent",
       strategyValue: product.pricingValue ?? 100,
     });
@@ -784,6 +800,7 @@ export function FichaTecnicaForm({
       sellingPrice: result.sellingPrice,
       totalCost: result.totalCost,
       totalWeightG: current.totalWeightG,
+      expectedVersion: selectedProduct?.version,
       materials: flat
         .filter((line) => {
           const resolved = resolveLineForPricing(line);
@@ -811,6 +828,12 @@ export function FichaTecnicaForm({
           totalStones: Math.max(0, Math.floor(num(o.totalStones))),
           sequenceOrder: i,
         })),
+      additionalCosts: (current.additionalCosts ?? []).map((cost) => ({
+        label: cost.label,
+        kind: cost.kind,
+        value: num(cost.value),
+        isPackaging: cost.isPackaging,
+      })),
     };
 
     startTransition(async () => {

@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { HelpButton } from "@/components/admin/help-button";
+import { ADMIN_INSUMOS_MAX } from "@/lib/list-limits";
+import { asClient } from "@/lib/decimal";
 import { InsumosClient } from "./insumos-client";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +11,7 @@ export default async function InsumosPage() {
   const [stones, chains, wires, alloys, patterns] = await Promise.all([
     prisma.stone.findMany({
       orderBy: { name: "asc" },
+      take: ADMIN_INSUMOS_MAX,
       select: {
         id: true,
         name: true,
@@ -23,6 +26,7 @@ export default async function InsumosPage() {
     }),
     prisma.chain.findMany({
       orderBy: { name: "asc" },
+      take: ADMIN_INSUMOS_MAX,
       select: {
         id: true,
         name: true,
@@ -37,6 +41,7 @@ export default async function InsumosPage() {
     }),
     prisma.wire.findMany({
       orderBy: { name: "asc" },
+      take: ADMIN_INSUMOS_MAX,
       select: {
         id: true,
         name: true,
@@ -56,6 +61,7 @@ export default async function InsumosPage() {
     }),
     prisma.metalAlloy.findMany({
       orderBy: { name: "asc" },
+      take: ADMIN_INSUMOS_MAX,
       select: {
         id: true,
         name: true,
@@ -71,6 +77,7 @@ export default async function InsumosPage() {
     }),
     prisma.supplyPattern.findMany({
       orderBy: { name: "asc" },
+      take: ADMIN_INSUMOS_MAX,
       select: {
         id: true,
         name: true,
@@ -121,11 +128,11 @@ export default async function InsumosPage() {
       </div>
 
       <InsumosClient
-        stones={stones}
-        chains={chains}
-        wires={wires}
-        alloys={alloys}
-        patterns={patterns}
+        stones={asClient(stones)}
+        chains={asClient(chains)}
+        wires={asClient(wires)}
+        alloys={asClient(alloys)}
+        patterns={asClient(patterns)}
       />
     </div>
   );

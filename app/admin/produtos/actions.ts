@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-guard";
+import { writeAuditLog } from "@/lib/audit";
 
 export type ProductActionState = {
   error?: string;
@@ -73,7 +74,7 @@ export async function createProduct(
   _prevState: ProductActionState,
   formData: FormData
 ): Promise<ProductActionState> {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const parsed = parseProductForm(formData);
   if (!parsed.success) {
@@ -103,6 +104,18 @@ export async function createProduct(
     };
   }
 
+  await writeAuditLog({
+    userId: session.user.id,
+    action: "PRODUCT_CREATE",
+    entity: "Product",
+    after: {
+      title: data.title,
+      price: data.price,
+      costPrice: data.costPrice,
+      productCode: data.productCode,
+    },
+  });
+
   revalidateAll();
   return { success: true };
 }
@@ -111,7 +124,7 @@ export async function updateProduct(
   _prevState: ProductActionState,
   formData: FormData
 ): Promise<ProductActionState> {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Produto inválido." };
@@ -122,6 +135,19 @@ export async function updateProduct(
   }
 
   const data = parsed.data;
+
+  const previous = await prisma.product.findFirst({
+    where: { id, isDeleted: false },
+    select: {
+      title: true,
+      price: true,
+      costPrice: true,
+      isAvailable: true,
+      productCode: true,
+      categoryId: true,
+    },
+  });
+  if (!previous) return { error: "Produto inválido." };
 
   try {
     await prisma.product.update({
@@ -137,6 +163,7 @@ export async function updateProduct(
         isAvailable: data.isAvailable,
         productCode: data.productCode,
         categoryId: data.categoryId,
+        version: { increment: 1 },
       },
     });
   } catch (error) {
@@ -145,12 +172,28 @@ export async function updateProduct(
     };
   }
 
+  await writeAuditLog({
+    userId: session.user.id,
+    action: "PRODUCT_UPDATE",
+    entity: "Product",
+    entityId: id,
+    before: previous,
+    after: {
+      title: data.title,
+      price: data.price,
+      costPrice: data.costPrice,
+      isAvailable: data.isAvailable,
+      productCode: data.productCode,
+      categoryId: data.categoryId,
+    },
+  });
+
   revalidateAll();
   return { success: true };
 }
 
 export async function deleteProduct(id: string): Promise<ProductActionState> {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   if (!id) return { error: "Produto inválido." };
 
@@ -163,31 +206,19 @@ export async function deleteProduct(id: string): Promise<ProductActionState> {
         isDeleted: true,
         isAvailable: false,
         productCode: null,
+        version: { increment: 1 },
       },
     });
   } catch {
     return { error: "Não foi possível excluir o produto." };
   }
 
-  revalidateAll();
-  return { success: true };
-}
-
-/** Alterna rapidamente a disponibilidade a partir da tabela. */
-export async function toggleProductAvailability(
-  id: string,
-  isAvailable: boolean
-): Promise<ProductActionState> {
-  await requireAdmin();
-
-  try {
-    await prisma.product.update({
-      where: { id, isDeleted: false },
-      data: { isAvailable },
-    });
-  } catch {
-    return { error: "Não foi possível atualizar a disponibilidade." };
-  }
+  await writeAuditLog({
+    userId: session.user.id,
+    action: "PRODUCT_DELETE",
+    entity: "Product",
+    entityId: id,
+  });
 
   revalidateAll();
   return { success: true };
