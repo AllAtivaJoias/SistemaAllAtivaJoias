@@ -17,22 +17,19 @@ export async function POST(): Promise<NextResponse> {
 
   try {
     const result = await seedStonesLibrary(prisma);
-
-    if (result.status === "blocked") {
-      return NextResponse.json(
-        {
-          error:
-            "Ação bloqueada: Existem pedras cadastradas. O catálogo não pode ser populado novamente.",
-          existingCount: result.existingCount,
-        },
-        { status: 409 }
-      );
-    }
+    const message =
+      result.insertedCount === 0
+        ? `Catálogo base já estava completo (${result.skippedCount} existentes).`
+        : result.skippedCount === 0
+          ? `${result.insertedCount} pedras inseridas com sucesso.`
+          : `${result.insertedCount} pedras inseridas · ${result.skippedCount} já existiam.`;
 
     return NextResponse.json({
       ok: true,
       insertedCount: result.insertedCount,
-      message: `${result.insertedCount} pedras inseridas com sucesso.`,
+      skippedCount: result.skippedCount,
+      catalogSize: result.catalogSize,
+      message,
     });
   } catch (error) {
     logger.error("seed_stones.failed", {

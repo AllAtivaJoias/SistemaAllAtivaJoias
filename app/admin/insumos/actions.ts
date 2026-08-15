@@ -92,7 +92,7 @@ function prismaKnown(error: unknown): Prisma.PrismaClientKnownRequestError | nul
 function stoneDbError(error: unknown, fallback: string): string {
   const known = prismaKnown(error);
   if (known?.code === "P2002") {
-    return "Já existe uma pedra com essa lapidação, cor e dimensão.";
+    return "Esta pedra já está cadastrada.";
   }
   if (known?.code === "P2003") {
     return "Esta pedra está em uso em uma ordem e não pode ser excluída.";

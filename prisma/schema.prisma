@@ -200,6 +200,7 @@ model Stone {
   @@index([color])
   @@index([widthMm])
   @@index([cut, color, widthMm, lengthMm])
+  // Unicidade lógica (PostgreSQL): LOWER(cut), LOWER(color), widthMm, COALESCE(lengthMm, -1)
 }
 
 model Chain {

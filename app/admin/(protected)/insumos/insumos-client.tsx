@@ -187,20 +187,7 @@ function StonesPanel({
   const [seeding, setSeeding] = useState(false);
   const [toast, setToast] = useState<PanelToast>(null);
 
-  const hasStones = stones.length > 0;
-  const seedDisabled = hasStones || seeding;
-
   async function handleSeedBaseCatalog() {
-    // Trava de UI espelhando o backend — mesmo se o disabled for burlado.
-    if (stones.length > 0) {
-      setToast({
-        type: "error",
-        message:
-          "Ação bloqueada: Existem pedras cadastradas. O catálogo não pode ser populado novamente.",
-      });
-      return;
-    }
-
     setSeeding(true);
     try {
       const res = await fetch("/api/insumos/seed-pedras", { method: "POST" });
@@ -208,14 +195,13 @@ function StonesPanel({
         error?: string;
         message?: string;
         insertedCount?: number;
+        skippedCount?: number;
       };
 
       if (!res.ok) {
         setToast({
           type: "error",
-          message:
-            data.error ??
-            "Ação bloqueada: Existem pedras cadastradas. O catálogo não pode ser populado novamente.",
+          message: data.error ?? "Não foi possível popular o catálogo.",
         });
         return;
       }
@@ -340,13 +326,9 @@ function StonesPanel({
           <Button
             type="button"
             variant="outline"
-            disabled={seedDisabled}
+            disabled={seeding}
             onClick={handleSeedBaseCatalog}
-            title={
-              hasStones
-                ? "Catálogo já populado — ação bloqueada"
-                : "Inserir biblioteca base de zircônias (somente uma vez)"
-            }
+            title="Inserir combinações ausentes do catálogo base (Estrela, Redonda, Quadrada)"
             className="border-brand-200 text-brand-800 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {seeding ? (

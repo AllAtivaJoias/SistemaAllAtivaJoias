@@ -40,15 +40,20 @@ import {
 import { colorToHex, computeAlloy, karatToPurity } from "@/lib/jewelry-math";
 import { Badge } from "@/components/ui/badge";
 import {
-  STONE_CUTS,
+  STONE_CUT_SUGGESTIONS,
   DEFAULT_STONE_COLORS,
   buildStoneName,
   displayColor,
   formatStoneDimension,
-  isDiameterCut,
   normalizeColors,
+  normalizeCutDisplay,
   stoneCutLabel,
 } from "@/lib/stone";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const MESHES = [
   "veneziana",
@@ -161,22 +166,21 @@ function SubmitButton({
 const stoneFormSchema = z
   .object({
     id: z.string().optional(),
-    cut: z.string().trim().min(1, "Selecione a lapidação."),
+    cut: z.string().trim().min(1, "A lapidação é obrigatória."),
     widthMm: z
-      .number({ error: "Informe a medida em mm." })
-      .gt(0, "A medida deve ser maior que zero."),
+      .number({ error: "Informe a largura em mm." })
+      .gt(0, "A largura deve ser maior que zero."),
     lengthMm: z.number().gt(0).nullable(),
-    colors: z.array(z.string()).min(1, "Selecione pelo menos uma cor."),
+    colors: z.array(z.string()).min(1, "Informe pelo menos uma cor."),
     weightCt: z.number().nonnegative(),
     unitPrice: z.number().nonnegative(),
   })
   .superRefine((data, ctx) => {
-    if (isDiameterCut(data.cut)) return;
-    if (data.lengthMm == null || !(data.lengthMm > 0)) {
+    if (data.lengthMm != null && data.lengthMm > 0 && !(data.widthMm > 0)) {
       ctx.addIssue({
         code: "custom",
-        path: ["lengthMm"],
-        message: "Informe o comprimento (mm).",
+        path: ["widthMm"],
+        message: "Informe a largura quando o comprimento for preenchido.",
       });
     }
   });
@@ -185,7 +189,7 @@ type StoneFormValues = z.infer<typeof stoneFormSchema>;
 
 const emptyStone = (): StoneFormValues => ({
   id: undefined,
-  cut: "brilhante",
+  cut: "",
   widthMm: 0,
   lengthMm: null,
   colors: [],
@@ -347,6 +351,111 @@ function StoneColorMultiSelect({
   );
 }
 
+export function StoneCutCombobox({
+  value,
+  onChange,
+  disabled,
+  error,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  disabled?: boolean;
+  error?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  const suggestions = useMemo(() => {
+    const q = draft.trim().toLocaleLowerCase("pt-BR");
+    const pool: string[] = [...STONE_CUT_SUGGESTIONS];
+    if (value && !pool.some((label) => label.toLocaleLowerCase("pt-BR") === value.toLocaleLowerCase("pt-BR"))) {
+      pool.unshift(value);
+    }
+    if (!q) return pool;
+    return pool.filter((label) =>
+      label.toLocaleLowerCase("pt-BR").includes(q)
+    );
+  }, [draft, value]);
+
+  function commit(raw: string) {
+    const next = normalizeCutDisplay(raw);
+    onChange(next);
+    setDraft(next);
+    setOpen(false);
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="stone-cut">Lapidação</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <div>
+            <Input
+              id="stone-cut"
+              value={draft}
+              disabled={disabled}
+              placeholder="Redonda, Gota, Flor Imperial…"
+              autoComplete="off"
+              onChange={(e) => {
+                setDraft(e.target.value);
+                onChange(e.target.value);
+                setOpen(true);
+              }}
+              onFocus={() => setOpen(true)}
+              onBlur={() => commit(draft)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commit(draft);
+                }
+              }}
+            />
+          </div>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-[var(--radix-popover-trigger-width)] p-1"
+          align="start"
+          onOpenAutoFocus={(event) => event.preventDefault()}
+        >
+          <div className="max-h-56 overflow-y-auto">
+            {suggestions.length === 0 ? (
+              <button
+                type="button"
+                className="w-full rounded px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-brand-50"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => commit(draft)}
+              >
+                Usar “{draft.trim()}”
+              </button>
+            ) : (
+              suggestions.map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="w-full rounded px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-brand-50"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => commit(label)}
+                >
+                  {label}
+                </button>
+              ))
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+      {error ? <p className="text-xs text-red-600">{error}</p> : (
+        <p className="text-xs text-slate-500">
+          Escolha uma sugestão ou digite uma lapidação personalizada.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function StoneFormDialog({
   open,
   onOpenChange,
@@ -372,14 +481,6 @@ export function StoneFormDialog({
   const widthMm = form.watch("widthMm");
   const lengthMm = form.watch("lengthMm");
   const colors = form.watch("colors");
-  const diameterOnly = isDiameterCut(cut);
-
-  const cutOptions = useMemo(() => {
-    const extra = cut && !STONE_CUTS.some((c) => c.value === cut);
-    return extra
-      ? [...STONE_CUTS, { value: cut, label: stoneCutLabel(cut), dimension: "wxh" as const }]
-      : [...STONE_CUTS];
-  }, [cut]);
 
   const previewNames = useMemo(() => {
     const normalized = normalizeColors(colors);
@@ -388,14 +489,14 @@ export function StoneFormDialog({
         cut,
         color,
         widthMm: widthMm > 0 ? widthMm : null,
-        lengthMm: diameterOnly ? null : lengthMm,
+        lengthMm,
       })
     );
-  }, [cut, colors, widthMm, lengthMm, diameterOnly]);
+  }, [cut, colors, widthMm, lengthMm]);
 
   const dimensionLabel = formatStoneDimension({
     widthMm: widthMm > 0 ? widthMm : null,
-    lengthMm: diameterOnly ? null : lengthMm,
+    lengthMm,
   });
 
   useEffect(() => {
@@ -411,7 +512,7 @@ export function StoneFormDialog({
         id: values.id || undefined,
         cut: values.cut,
         widthMm: values.widthMm,
-        lengthMm: isDiameterCut(values.cut) ? null : values.lengthMm,
+        lengthMm: values.lengthMm,
         colors: values.colors,
         weightCt: values.weightCt,
         unitPrice: values.unitPrice,
@@ -450,92 +551,61 @@ export function StoneFormDialog({
           </DialogHeader>
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Lapidação</Label>
-              <Select
-                value={cut}
-                onValueChange={(value) =>
-                  form.setValue("cut", value, { shouldValidate: true })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a lapidação" />
-                </SelectTrigger>
-                <SelectContent>
-                  {cutOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.formState.errors.cut && (
-                <p className="text-xs text-red-600">
-                  {form.formState.errors.cut.message}
-                </p>
-              )}
-            </div>
+            <StoneCutCombobox
+              value={cut}
+              disabled={isPending}
+              error={form.formState.errors.cut?.message}
+              onChange={(next) =>
+                form.setValue("cut", next, { shouldValidate: true })
+              }
+            />
 
-            {diameterOnly ? (
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="stone-width">Diâmetro (mm)</Label>
+                <Label htmlFor="stone-width">Largura (mm)</Label>
                 <Input
                   id="stone-width"
                   type="number"
                   inputMode="decimal"
                   step="0.01"
                   min={0.01}
-                  {...form.register("widthMm", { setValueAs: setRequiredNumber })}
-                  placeholder="2.5"
+                  {...form.register("widthMm", {
+                    setValueAs: setRequiredNumber,
+                  })}
+                  placeholder="4"
                 />
-                {form.formState.errors.widthMm && (
+                {form.formState.errors.widthMm ? (
                   <p className="text-xs text-red-600">
                     {form.formState.errors.widthMm.message}
                   </p>
+                ) : (
+                  <p className="text-xs text-slate-500">Ex.: 4</p>
                 )}
               </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="stone-width">Largura (mm)</Label>
-                  <Input
-                    id="stone-width"
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min={0.01}
-                    {...form.register("widthMm", {
-                      setValueAs: setRequiredNumber,
-                    })}
-                    placeholder="3"
-                  />
-                  {form.formState.errors.widthMm && (
-                    <p className="text-xs text-red-600">
-                      {form.formState.errors.widthMm.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="stone-length">Comprimento (mm)</Label>
-                  <Input
-                    id="stone-length"
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min={0.01}
-                    {...form.register("lengthMm", {
-                      setValueAs: setOptionalNumber,
-                    })}
-                    placeholder="5"
-                  />
-                  {form.formState.errors.lengthMm && (
-                    <p className="text-xs text-red-600">
-                      {form.formState.errors.lengthMm.message}
-                    </p>
-                  )}
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="stone-length">Comprimento (mm)</Label>
+                <Input
+                  id="stone-length"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min={0.01}
+                  {...form.register("lengthMm", {
+                    setValueAs: setOptionalNumber,
+                  })}
+                  placeholder="6"
+                />
+                {form.formState.errors.lengthMm ? (
+                  <p className="text-xs text-red-600">
+                    {form.formState.errors.lengthMm.message}
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    Opcional para pedras simétricas. Ex.: 6
+                  </p>
+                )}
               </div>
-            )}
+            </div>
 
             {isEditing ? (
               <div className="space-y-2">

@@ -4,7 +4,10 @@ import {
   buildStoneName,
   formatStoneDimension,
   isDiameterCut,
+  isSymmetricCut,
   normalizeColors,
+  normalizeCutDisplay,
+  normalizeStoneDimensions,
   partitionStoneBatch,
   stoneBatchSchema,
   stoneIdentityKey,
@@ -32,34 +35,78 @@ describe("formatStoneDimension", () => {
 });
 
 describe("buildStoneName", () => {
-  it("Brilhante 2mm - Rubi", () => {
+  it("Redonda 4mm - Branco", () => {
     expect(
       buildStoneName({
-        cut: "brilhante",
-        color: "rubi",
-        widthMm: 2,
+        cut: "redonda",
+        color: "branco",
+        widthMm: 4,
         lengthMm: null,
       })
-    ).toBe("Brilhante 2mm - Rubi");
+    ).toBe("Redonda 4mm - Branco");
   });
 
-  it("Navete 3x5mm - Rubi", () => {
+  it("Gota 4x6mm - Rubi", () => {
     expect(
       buildStoneName({
-        cut: "navete",
+        cut: "gota",
         color: "Rubi",
-        widthMm: 3,
-        lengthMm: 5,
+        widthMm: 4,
+        lengthMm: 6,
       })
-    ).toBe("Navete 3x5mm - Rubi");
+    ).toBe("Gota 4x6mm - Rubi");
+  });
+
+  it("lapidação personalizada", () => {
+    expect(
+      buildStoneName({
+        cut: "Flor Imperial",
+        color: "Esmeralda",
+        widthMm: 5,
+        lengthMm: 8,
+      })
+    ).toBe("Flor Imperial 5x8mm - Esmeralda");
+  });
+});
+
+describe("normalizeStoneDimensions", () => {
+  it("1D válido", () => {
+    expect(normalizeStoneDimensions({ widthMm: 4, lengthMm: null })).toEqual({
+      ok: true,
+      widthMm: 4,
+      lengthMm: null,
+    });
+  });
+
+  it("2D válido", () => {
+    expect(normalizeStoneDimensions({ widthMm: 4, lengthMm: 6 })).toEqual({
+      ok: true,
+      widthMm: 4,
+      lengthMm: 6,
+    });
+  });
+
+  it("rejeita 0, negativo, NaN e Infinity", () => {
+    expect(normalizeStoneDimensions({ widthMm: 0 }).ok).toBe(false);
+    expect(normalizeStoneDimensions({ widthMm: -4 }).ok).toBe(false);
+    expect(normalizeStoneDimensions({ widthMm: Number.NaN }).ok).toBe(false);
+    expect(
+      normalizeStoneDimensions({ widthMm: Number.POSITIVE_INFINITY }).ok
+    ).toBe(false);
+  });
+
+  it("comprimento sem largura", () => {
+    const result = normalizeStoneDimensions({ widthMm: null, lengthMm: 6 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.path).toBe("widthMm");
   });
 });
 
 describe("validação de lote", () => {
-  it("Brilhante + diâmetro válido", () => {
+  it("Redonda 4mm", () => {
     const parsed = stoneBatchSchema.safeParse({
-      cut: "brilhante",
-      widthMm: 2.5,
+      cut: "Redonda",
+      widthMm: 4,
       lengthMm: null,
       colors: ["branco"],
       weightCt: 0.03,
@@ -68,53 +115,87 @@ describe("validação de lote", () => {
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       expect(parsed.data.lengthMm).toBeNull();
-      expect(parsed.data.cut).toBe("brilhante");
+      expect(parsed.data.cut).toBe("Redonda");
     }
   });
 
-  it("Brilhante + length inválido", () => {
+  it("Quadrada 5mm (1D)", () => {
     const parsed = stoneBatchSchema.safeParse({
-      cut: "brilhante",
-      widthMm: 3,
-      lengthMm: 5,
-      colors: ["branco"],
-      weightCt: 0,
-      unitPrice: 0,
-    });
-    expect(parsed.success).toBe(false);
-  });
-
-  it("Navete + width e length válidos", () => {
-    const parsed = stoneBatchSchema.safeParse({
-      cut: "navete",
-      widthMm: 3,
-      lengthMm: 5,
-      colors: ["Rubi", "Safira"],
+      cut: "quadrada",
+      widthMm: 5,
+      lengthMm: null,
+      colors: ["Branco"],
       weightCt: 0,
       unitPrice: 0,
     });
     expect(parsed.success).toBe(true);
-    if (parsed.success) {
-      expect(parsed.data.colors).toEqual(["Rubi", "Safira"]);
-    }
+    if (parsed.success) expect(parsed.data.lengthMm).toBeNull();
   });
 
-  it("Navete sem length", () => {
+  it("Estrela 6mm", () => {
     const parsed = stoneBatchSchema.safeParse({
-      cut: "navete",
-      widthMm: 3,
-      lengthMm: null,
-      colors: ["branco"],
+      cut: "Estrela",
+      widthMm: 6,
+      colors: ["Branco"],
       weightCt: 0,
       unitPrice: 0,
     });
-    expect(parsed.success).toBe(false);
+    expect(parsed.success).toBe(true);
+  });
+
+  it("Gota 4x6mm", () => {
+    const parsed = stoneBatchSchema.safeParse({
+      cut: "gota",
+      widthMm: 4,
+      lengthMm: 6,
+      colors: ["Rubi"],
+      weightCt: 0,
+      unitPrice: 0,
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("Oval 5x7mm", () => {
+    const parsed = stoneBatchSchema.safeParse({
+      cut: "Oval",
+      widthMm: 5,
+      lengthMm: 7,
+      colors: ["Esmeralda"],
+      weightCt: 0,
+      unitPrice: 0,
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("lapidação customizada 5x8mm", () => {
+    const parsed = stoneBatchSchema.safeParse({
+      cut: "Flor Imperial",
+      widthMm: 5,
+      lengthMm: 8,
+      colors: ["Esmeralda"],
+      weightCt: 0,
+      unitPrice: 0,
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.cut).toBe("Flor Imperial");
+  });
+
+  it("Gota só com largura é válida (comprimento opcional)", () => {
+    const parsed = stoneBatchSchema.safeParse({
+      cut: "gota",
+      widthMm: 4,
+      lengthMm: null,
+      colors: ["Rubi"],
+      weightCt: 0,
+      unitPrice: 0,
+    });
+    expect(parsed.success).toBe(true);
   });
 
   it("width <= 0, NaN e Infinity", () => {
     expect(
       stoneBatchSchema.safeParse({
-        cut: "brilhante",
+        cut: "Redonda",
         widthMm: 0,
         colors: ["branco"],
         weightCt: 0,
@@ -123,7 +204,7 @@ describe("validação de lote", () => {
     ).toBe(false);
     expect(
       stoneBatchSchema.safeParse({
-        cut: "brilhante",
+        cut: "Redonda",
         widthMm: Number.NaN,
         colors: ["branco"],
         weightCt: 0,
@@ -132,7 +213,7 @@ describe("validação de lote", () => {
     ).toBe(false);
     expect(
       stoneBatchSchema.safeParse({
-        cut: "brilhante",
+        cut: "Redonda",
         widthMm: Number.POSITIVE_INFINITY,
         colors: ["branco"],
         weightCt: 0,
@@ -141,7 +222,7 @@ describe("validação de lote", () => {
     ).toBe(false);
   });
 
-  it("length <= 0 em fantasia", () => {
+  it("length <= 0", () => {
     expect(
       stoneBatchSchema.safeParse({
         cut: "oval",
@@ -154,10 +235,22 @@ describe("validação de lote", () => {
     ).toBe(false);
   });
 
+  it("lapidação vazia", () => {
+    expect(
+      stoneBatchSchema.safeParse({
+        cut: "  ",
+        widthMm: 4,
+        colors: ["branco"],
+        weightCt: 0,
+        unitPrice: 0,
+      }).success
+    ).toBe(false);
+  });
+
   it("cores vazias, duplicadas e com espaços", () => {
     expect(
       stoneBatchSchema.safeParse({
-        cut: "brilhante",
+        cut: "Redonda",
         widthMm: 2,
         colors: [],
         weightCt: 0,
@@ -166,7 +259,7 @@ describe("validação de lote", () => {
     ).toBe(false);
 
     const parsed = stoneBatchSchema.safeParse({
-      cut: "brilhante",
+      cut: "Redonda",
       widthMm: 2,
       colors: [" Rubi ", "rubi", "RUBI", "Safira"],
       weightCt: 0,
@@ -185,7 +278,7 @@ describe("partitionStoneBatch", () => {
       { cut: "navete", color: "Rubi", widthMm: 3, lengthMm: 5 },
     ];
     const incoming = [
-      { cut: "navete", color: "Rubi", widthMm: 3, lengthMm: 5 },
+      { cut: "Navete", color: "Rubi", widthMm: 3, lengthMm: 5 },
       { cut: "navete", color: "Safira", widthMm: 3, lengthMm: 5 },
     ];
     const { toCreate, skipped } = partitionStoneBatch(existing, incoming);
@@ -194,30 +287,37 @@ describe("partitionStoneBatch", () => {
     expect(toCreate[0]?.color).toBe("Safira");
   });
 
-  it("identidade ignora caixa da cor", () => {
+  it("identidade ignora caixa da cor e da lapidação", () => {
     expect(
       stoneIdentityKey({
-        cut: "Navete",
+        cut: "Gota",
         color: "RUBI",
-        widthMm: 3,
-        lengthMm: 5,
+        widthMm: 4,
+        lengthMm: 6,
       })
     ).toBe(
       stoneIdentityKey({
-        cut: "navete",
+        cut: "gota",
         color: "Rubi",
-        widthMm: 3,
-        lengthMm: 5,
+        widthMm: 4,
+        lengthMm: 6,
       })
     );
   });
 });
 
-describe("isDiameterCut / normalizeColors", () => {
-  it("brilhante e redonda são diâmetro", () => {
+describe("lapidação e cores", () => {
+  it("simétricas: redonda, quadrada, estrela, brilhante", () => {
+    expect(isSymmetricCut("Redonda")).toBe(true);
+    expect(isSymmetricCut("Quadrada")).toBe(true);
+    expect(isSymmetricCut("Estrela")).toBe(true);
     expect(isDiameterCut("brilhante")).toBe(true);
-    expect(isDiameterCut("Redonda")).toBe(true);
-    expect(isDiameterCut("navete")).toBe(false);
+    expect(isSymmetricCut("gota")).toBe(false);
+  });
+
+  it("preserva grafia personalizada e mapeia aliases", () => {
+    expect(normalizeCutDisplay("  gota ")).toBe("Gota");
+    expect(normalizeCutDisplay("Flor Imperial")).toBe("Flor Imperial");
   });
 
   it("normaliza cores", () => {

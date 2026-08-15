@@ -390,6 +390,9 @@ CREATE INDEX "Stone_widthMm_idx" ON "Stone"("widthMm");
 -- CreateIndex
 CREATE INDEX "Stone_cut_color_widthMm_lengthMm_idx" ON "Stone"("cut", "color", "widthMm", "lengthMm");
 
+CREATE UNIQUE INDEX "Stone_identity_key"
+  ON "Stone" (LOWER("cut"), LOWER("color"), "widthMm", COALESCE("lengthMm", -1));
+
 -- CreateIndex
 CREATE INDEX "Chain_name_idx" ON "Chain"("name");
 
