@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -55,10 +56,7 @@ export function HelpButton({
         </Button>
       </SheetTrigger>
 
-      <SheetContent
-        side="right"
-        className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
-      >
+      <SheetContent side="right" className="w-full sm:max-w-md">
         <SheetHeader className="space-y-2 border-b border-slate-200 bg-[#034742]/[0.04] px-6 py-5 text-left">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#034742]/10 text-[#034742]">
@@ -73,7 +71,7 @@ export function HelpButton({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+        <SheetBody className="space-y-6 py-5">
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-[#034742]">
               Campos explicados
@@ -123,7 +121,7 @@ export function HelpButton({
               </ul>
             </section>
           ) : null}
-        </div>
+        </SheetBody>
       </SheetContent>
     </Sheet>
   );

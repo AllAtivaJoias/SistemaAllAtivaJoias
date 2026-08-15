@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -550,7 +551,11 @@ export function StoneFormDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <DialogBody className="space-y-4">
             <StoneCutCombobox
               value={cut}
               disabled={isPending}
@@ -691,6 +696,7 @@ export function StoneFormDialog({
             )}
 
             {formError && <p className="text-sm text-red-600">{formError}</p>}
+            </DialogBody>
 
             <DialogFooter>
               <Button
@@ -809,7 +815,11 @@ export function ChainFormDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <DialogBody className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="chain-name">Nome</Label>
               <Input
@@ -893,6 +903,7 @@ export function ChainFormDialog({
             </div>
 
             {formError && <p className="text-sm text-red-600">{formError}</p>}
+            </DialogBody>
 
             <DialogFooter>
               <SubmitButton isPending={isPending} isEditing={isEditing} />
@@ -1041,7 +1052,11 @@ export function WireFormDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <DialogBody className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="wire-name">Nome</Label>
               <Input
@@ -1167,6 +1182,7 @@ export function WireFormDialog({
             )}
 
             {formError && <p className="text-sm text-red-600">{formError}</p>}
+            </DialogBody>
 
             <DialogFooter>
               <SubmitButton isPending={isPending} isEditing={isEditing} />
@@ -1305,7 +1321,11 @@ export function AlloyFormDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <DialogBody className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="alloy-name">Nome da liga</Label>
@@ -1423,6 +1443,7 @@ export function AlloyFormDialog({
             </div>
 
             {formError && <p className="text-sm text-red-600">{formError}</p>}
+            </DialogBody>
 
             <DialogFooter>
               <SubmitButton isPending={isPending} isEditing={isEditing} />

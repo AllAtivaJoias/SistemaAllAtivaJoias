@@ -38,7 +38,9 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
+        // Arquitetura Header + Body rolável + Footer: coluna flex limitada à
+        // viewport (dvh no mobile). O overflow fica a cargo do <DialogBody>.
+        "fixed left-1/2 top-1/2 z-50 flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden border bg-background p-0 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
         className
       )}
       {...props}
@@ -59,7 +61,7 @@ const DialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col space-y-1.5 text-center sm:text-left",
+      "flex shrink-0 flex-col space-y-1.5 px-6 pt-6 text-center sm:text-left",
       className
     )}
     {...props}
@@ -67,13 +69,32 @@ const DialogHeader = ({
 );
 DialogHeader.displayName = "DialogHeader";
 
+/**
+ * Corpo rolável do diálogo. É o ÚNICO responsável pelo scroll do conteúdo.
+ * `min-h-0` permite que o filho flex encolha; `flex-1` ocupa o espaço restante
+ * entre o header e o footer fixos.
+ */
+const DialogBody = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "min-h-0 flex-1 overflow-y-auto px-6 py-4",
+      className
+    )}
+    {...props}
+  />
+);
+DialogBody.displayName = "DialogBody";
+
 const DialogFooter = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      "flex shrink-0 flex-col-reverse gap-2 border-t bg-background px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 sm:flex-row sm:justify-end",
       className
     )}
     {...props}
@@ -116,6 +137,7 @@ export {
   DialogTrigger,
   DialogContent,
   DialogHeader,
+  DialogBody,
   DialogFooter,
   DialogTitle,
   DialogDescription,

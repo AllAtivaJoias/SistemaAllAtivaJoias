@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -313,14 +314,18 @@ export function PatternFormDialog({
         }
       }}
     >
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">
             {pattern ? "Editar ordem" : "Nova ordem de insumos"}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <DialogBody className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
               <Label>Nome da ordem</Label>
@@ -592,6 +597,7 @@ export function PatternFormDialog({
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
+          </DialogBody>
 
           <DialogFooter>
             <Button

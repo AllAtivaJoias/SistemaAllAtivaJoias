@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -60,11 +61,15 @@ export function CategoryFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form action={formAction} className="space-y-4">
+        <form
+          action={formAction}
+          className="flex min-h-0 flex-1 flex-col"
+        >
           {isEditing && (
             <input type="hidden" name="id" value={category!.id} />
           )}
 
+          <DialogBody className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Nome</Label>
             <Input
@@ -83,6 +88,7 @@ export function CategoryFormDialog({
           {state?.error && (
             <p className="text-sm text-red-600">{state.error}</p>
           )}
+          </DialogBody>
 
           <DialogFooter>
             <Button

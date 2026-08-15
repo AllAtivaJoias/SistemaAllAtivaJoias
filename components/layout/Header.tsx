@@ -8,6 +8,7 @@ import { useScrollSpy } from "@/hooks/use-scroll-spy";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetHeader,
   SheetTitle,
@@ -69,7 +70,8 @@ export function Header({ categories }: HeaderProps) {
               </SheetDescription>
             </SheetHeader>
 
-            <nav className="mt-8 flex flex-col gap-1">
+            <SheetBody className="mt-2">
+            <nav className="flex flex-col gap-1">
               {categories.map((category) => {
                 const isActive = category.id === activeId;
                 return (
@@ -96,6 +98,7 @@ export function Header({ categories }: HeaderProps) {
                 );
               })}
             </nav>
+            </SheetBody>
           </SheetContent>
         </Sheet>
 

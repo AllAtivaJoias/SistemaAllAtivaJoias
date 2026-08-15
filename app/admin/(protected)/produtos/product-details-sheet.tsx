@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/table";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -116,7 +117,7 @@ export function ProductDetailsSheet({
       <SheetTrigger asChild>{trigger}</SheetTrigger>
       <SheetContent
         side="right"
-        className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-2xl lg:max-w-3xl"
+        className="w-full sm:max-w-2xl lg:max-w-3xl"
       >
         <SheetHeader className="space-y-1 border-b border-stone-200 bg-stone-50/70 p-6 text-left">
           <div className="flex items-center justify-between gap-3">
@@ -140,7 +141,7 @@ export function ProductDetailsSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 space-y-6 p-6">
+        <SheetBody className="space-y-6 p-6">
           {state.status === "loading" || state.status === "idle" ? (
             <SpecSkeleton />
           ) : state.status === "not_found" ? (
@@ -170,7 +171,7 @@ export function ProductDetailsSheet({
               categories={categories}
             />
           )}
-        </div>
+        </SheetBody>
       </SheetContent>
     </Sheet>
   );

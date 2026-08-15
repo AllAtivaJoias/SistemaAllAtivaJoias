@@ -6,6 +6,7 @@ import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -63,7 +64,15 @@ export function DeleteConfirmDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        <DialogBody>
+          {error ? (
+            <p className="text-sm text-red-600">{error}</p>
+          ) : (
+            <p className="text-sm text-stone-500">
+              Esta ação não poderá ser desfeita.
+            </p>
+          )}
+        </DialogBody>
 
         <DialogFooter>
           <DialogClose asChild>

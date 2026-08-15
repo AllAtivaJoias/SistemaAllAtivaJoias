@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetDescription,
   SheetFooter,
@@ -133,10 +134,7 @@ export function ProductFormSheet({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>{trigger}</SheetTrigger>
-      <SheetContent
-        side="right"
-        className="w-full overflow-y-auto sm:max-w-md"
-      >
+      <SheetContent side="right" className="w-full sm:max-w-md">
         <SheetHeader>
           <SheetTitle>
             {isEditing ? "Editar produto" : "Novo produto"}
@@ -148,9 +146,10 @@ export function ProductFormSheet({
 
         <form
           onSubmit={form.handleSubmit(onValid)}
-          className="mt-6 space-y-4"
+          className="flex min-h-0 flex-1 flex-col"
           noValidate
         >
+          <SheetBody className="space-y-4">
           {/* Título + Código (SKU) lado a lado */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
@@ -281,6 +280,7 @@ export function ProductFormSheet({
           {state?.error && (
             <p className="text-sm text-red-600">{state.error}</p>
           )}
+          </SheetBody>
 
           <SheetFooter>
             <Button
