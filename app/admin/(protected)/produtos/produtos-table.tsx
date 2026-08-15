@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DeleteConfirmDialog } from "@/components/admin/delete-confirm-dialog";
+import { FeaturedToggle } from "@/components/admin/featured-toggle";
 import { DataTableFacetedFilter } from "@/components/admin/data-table-faceted-filter";
 import {
   DataTablePagination,
@@ -26,7 +27,10 @@ import { DataTableToolbar } from "@/components/admin/data-table-toolbar";
 import { ProductFormSheet, type ProductFormModel } from "./product-form-sheet";
 import { ProductDetailsSheet } from "./product-details-sheet";
 
-export type ProductRow = ProductFormModel & { category: Category | null };
+export type ProductRow = ProductFormModel & {
+  category: Category | null;
+  isFeatured: boolean;
+};
 
 function normalize(value: string): string {
   return value
@@ -152,6 +156,7 @@ export function ProdutosTable({ products, categories }: ProdutosTableProps) {
             <TableHead>Categoria</TableHead>
             <TableHead>Preço</TableHead>
             <TableHead className="text-center">Status</TableHead>
+            <TableHead className="w-24 text-center">Destaque</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -159,7 +164,7 @@ export function ProdutosTable({ products, categories }: ProdutosTableProps) {
           {pageItems.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={7}
+                colSpan={8}
                 className="py-10 text-center text-stone-500"
               >
                 {products.length === 0
@@ -203,6 +208,13 @@ export function ProdutosTable({ products, categories }: ProdutosTableProps) {
                       Indisponível
                     </span>
                   )}
+                </TableCell>
+                <TableCell className="text-center">
+                  <FeaturedToggle
+                    productId={product.id}
+                    isFeatured={product.isFeatured}
+                    disabled={!product.categoryId}
+                  />
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1">

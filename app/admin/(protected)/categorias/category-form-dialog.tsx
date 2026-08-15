@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import type { Category } from "@prisma/client";
 
 import {
   createCategory,
@@ -22,8 +21,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+/** Só os campos usados pelo formulário (o restante da Category é irrelevante aqui). */
+export type CategoryFormModel = {
+  id: string;
+  name: string;
+};
+
 interface CategoryFormDialogProps {
-  category?: Category;
+  category?: CategoryFormModel;
   trigger: React.ReactNode;
 }
 
@@ -70,17 +75,9 @@ export function CategoryFormDialog({
               required
               autoFocus
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="order">Ordem de exibição</Label>
-            <Input
-              id="order"
-              name="order"
-              type="number"
-              min={0}
-              defaultValue={category?.order ?? 0}
-            />
+            <p className="text-xs text-stone-500">
+              A ordem de exibição é definida arrastando as categorias na lista.
+            </p>
           </div>
 
           {state?.error && (

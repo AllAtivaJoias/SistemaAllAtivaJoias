@@ -24,6 +24,7 @@ export default async function ProdutosPage() {
         price: true,
         costPrice: true,
         isAvailable: true,
+        isFeatured: true,
         productCode: true,
         categoryId: true,
         category: true,

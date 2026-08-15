@@ -1,32 +1,32 @@
 import { prisma } from "@/lib/prisma";
 import {
-  getOrderDateFilter,
-  type OrderPeriod,
-} from "@/lib/order-period";
+  buildOrderDateRange,
+  parseDateParam,
+  formatDateParam,
+} from "@/lib/date-range";
 import { HistoricoTable } from "@/components/admin/historico-table";
-import { OrderPeriodFilter } from "@/components/admin/order-period-filter";
+import { DateRangePicker } from "@/components/admin/date-range-picker";
 import { ADMIN_HISTORY_MAX } from "@/lib/list-limits";
 import { asClient } from "@/lib/decimal";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
-const VALID_PERIODS = new Set(["today", "week", "month", "all"]);
-
 interface HistoricoPageProps {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }
 
 export default async function HistoricoPedidosPage({
   searchParams,
 }: HistoricoPageProps) {
   const params = (await searchParams) ?? {};
-  const rawPeriod = params.period;
-  const period: OrderPeriod = VALID_PERIODS.has(rawPeriod ?? "")
-    ? (rawPeriod as OrderPeriod)
-    : "all";
 
-  const dateFilter = getOrderDateFilter(period);
+  // Normaliza os parâmetros: só ecoa de volta datas válidas para o picker.
+  const parsedFrom = parseDateParam(params.from);
+  const parsedTo = parseDateParam(params.to);
+  const dateFilter = buildOrderDateRange(params.from, params.to);
+  const fromValue = parsedFrom ? formatDateParam(parsedFrom) : undefined;
+  const toValue = parsedTo ? formatDateParam(parsedTo) : fromValue;
 
   let serializedOrders: Parameters<typeof HistoricoTable>[0]["orders"] = [];
   let loadError: string | null = null;
@@ -97,7 +97,7 @@ export default async function HistoricoPedidosPage({
         </p>
       </div>
 
-      <OrderPeriodFilter current={period} />
+      <DateRangePicker from={fromValue} to={toValue} />
 
       {loadError && (
         <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">

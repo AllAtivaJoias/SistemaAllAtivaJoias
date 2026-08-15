@@ -32,7 +32,13 @@ export function Header({ categories }: HeaderProps) {
     setOpen(false);
     // Aguarda o fechamento do Sheet antes de rolar suavemente até a seção.
     window.setTimeout(() => {
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+      const target = document.getElementById(id);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth" });
+      } else {
+        // Fora da home (ex.: /categoria/[slug]): navega até a âncora na home.
+        window.location.href = `/#${id}`;
+      }
     }, 150);
   }
 

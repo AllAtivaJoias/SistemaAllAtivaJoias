@@ -87,6 +87,16 @@ model Category {
   @@index([order])
 }
 
+/// Configuração global da vitrine (singleton: id fixo "singleton").
+model StoreSettings {
+  id           String   @id @default("singleton")
+  heroTitle    String   @default("")
+  heroSubtitle String   @default("")
+  footerText   String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model Product {
   id               String                   @id @default(cuid())
   title            String
@@ -96,6 +106,7 @@ model Product {
   costPrice        Decimal                  @default(0) @db.Decimal(14, 2)
   isAvailable      Boolean                  @default(true)
   isDeleted        Boolean                  @default(false)
+  isFeatured       Boolean                  @default(false)
   productCode      String?                  @unique
   totalWeightG     Decimal?                 @db.Decimal(14, 4)
   pricingStrategy  String?
@@ -115,6 +126,8 @@ model Product {
   @@index([isDeleted])
   @@index([isDeleted, isAvailable])
   @@index([categoryId, title])
+  // Vitrine: destaques por categoria (limite de 4) e filtros de publicação.
+  @@index([categoryId, isFeatured, isDeleted, isAvailable])
 }
 
 model ProductAdditionalCost {

@@ -15,6 +15,7 @@ import {
   LogOut,
   Menu,
   Package,
+  Palette,
   ShoppingCart,
   Tags,
   X,
@@ -38,6 +39,7 @@ const links = [
     badge: true,
   },
   { href: "/admin/pedidos/historico", label: "Histórico", icon: History },
+  { href: "/admin/aparencia", label: "Aparência", icon: Palette },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {

@@ -1,4 +1,8 @@
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+
 import { prisma } from "@/lib/prisma";
+import { getStoreSettings } from "@/lib/store-settings";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ProductCard } from "@/components/ProductCard";
@@ -6,27 +10,37 @@ import { asClient } from "@/lib/decimal";
 
 export const dynamic = "force-dynamic";
 
+/** Máximo de destaques exibidos por categoria na vitrine. */
+const FEATURED_LIMIT = 4;
+
 export default async function Home() {
-  // Vitrine pública: seleciona APENAS campos visíveis ao cliente.
-  // productCode (SKU interno) fica de fora de propósito.
-  const categories = await prisma.category.findMany({
-    orderBy: { order: "asc" },
-    include: {
-      products: {
-        where: { isAvailable: true, isDeleted: false },
-        orderBy: { title: "asc" },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          imageUrl: true,
-          price: true,
+  // Vitrine editorial: cada categoria mostra até 4 produtos em destaque.
+  // Uma única consulta (categorias + destaques aninhados) evita N+1.
+  const [settings, categories] = await Promise.all([
+    getStoreSettings(),
+    prisma.category.findMany({
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        products: {
+          where: { isFeatured: true, isAvailable: true, isDeleted: false },
+          orderBy: { createdAt: "desc" },
+          take: FEATURED_LIMIT,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            imageUrl: true,
+            price: true,
+          },
         },
       },
-    },
-  });
+    }),
+  ]);
 
-  // Mantém no catálogo apenas categorias que tenham ao menos um produto.
+  // Só exibe categorias que tenham ao menos um destaque.
   const visibleCategories = categories.filter(
     (category) => category.products.length > 0
   );
@@ -48,16 +62,15 @@ export default async function Home() {
               Joalheria de Alto Padrão
             </span>
             <h1 className="font-serif text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
-              AllAtiva Joias
+              {settings.heroTitle}
             </h1>
             <p className="max-w-xl text-base text-slate-500">
-              Peças exclusivas pensadas com precisão e elegância. Explore o
-              catálogo e descubra joias que celebram cada momento.
+              {settings.heroSubtitle}
             </p>
           </div>
         </section>
 
-        {/* Seções por categoria */}
+        {/* Seções por categoria (apenas destaques) */}
         <div className="container py-12">
           {visibleCategories.length === 0 ? (
             <p className="py-20 text-center text-slate-500">
@@ -75,9 +88,16 @@ export default async function Home() {
                     {category.name}
                   </h2>
                   <span className="h-px flex-1 bg-slate-200" />
+                  <Link
+                    href={`/categoria/${category.slug}`}
+                    className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-brand-700 transition-colors hover:text-brand-800"
+                  >
+                    Ver todas
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:gap-6">
                   {category.products.map((product) => (
                     <ProductCard key={product.id} product={asClient(product)} />
                   ))}
@@ -88,7 +108,7 @@ export default async function Home() {
         </div>
       </main>
 
-      <Footer />
+      <Footer tagline={settings.footerText} />
     </div>
   );
 }

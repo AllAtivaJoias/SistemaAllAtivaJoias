@@ -61,6 +61,18 @@ CREATE TABLE "Category" (
 );
 
 -- CreateTable
+CREATE TABLE "StoreSettings" (
+    "id" TEXT NOT NULL DEFAULT 'singleton',
+    "heroTitle" TEXT NOT NULL DEFAULT '',
+    "heroSubtitle" TEXT NOT NULL DEFAULT '',
+    "footerText" TEXT NOT NULL DEFAULT '',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "StoreSettings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Product" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -70,6 +82,7 @@ CREATE TABLE "Product" (
     "costPrice" DECIMAL(14,2) NOT NULL DEFAULT 0,
     "isAvailable" BOOLEAN NOT NULL DEFAULT true,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "isFeatured" BOOLEAN NOT NULL DEFAULT false,
     "productCode" TEXT,
     "totalWeightG" DECIMAL(14,4),
     "pricingStrategy" TEXT,
@@ -338,6 +351,9 @@ CREATE INDEX "Product_isDeleted_isAvailable_idx" ON "Product"("isDeleted", "isAv
 
 -- CreateIndex
 CREATE INDEX "Product_categoryId_title_idx" ON "Product"("categoryId", "title");
+
+-- CreateIndex
+CREATE INDEX "Product_categoryId_isFeatured_isDeleted_isAvailable_idx" ON "Product"("categoryId", "isFeatured", "isDeleted", "isAvailable");
 
 -- CreateIndex
 CREATE INDEX "ProductAdditionalCost_productId_sortOrder_idx" ON "ProductAdditionalCost"("productId", "sortOrder");
