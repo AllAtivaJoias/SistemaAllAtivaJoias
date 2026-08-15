@@ -1,31 +1,21 @@
 import { Pool } from "pg";
-import { Signer } from "@aws-sdk/rds-signer";
-import { awsCredentialsProvider } from "@vercel/functions/oidc";
 
-const PG_PORT = Number(process.env.PGPORT ?? 5432);
-const PG_USER = process.env.PGUSER || "postgres";
+// Pool `pg` conectado ao Neon PostgreSQL via connection string (SSL).
+// A URL vem das variáveis do Neon: usamos a conexão *pooled* em runtime.
+export function createNeonPool(): Pool {
+  const connectionString =
+    process.env.NEON_DATABASE_URL ??
+    process.env.NEON_POSTGRES_PRISMA_URL ??
+    process.env.DATABASE_URL;
 
-// Cria um pool `pg` autenticado no Aurora PostgreSQL via IAM (OIDC).
-// Não há senha estática: o RDS Signer gera um token temporário por conexão.
-export function createAuroraPool(): Pool {
-  const signer = new Signer({
-    credentials: awsCredentialsProvider({
-      roleArn: process.env.AWS_ROLE_ARN!,
-      clientConfig: { region: process.env.AWS_REGION },
-    }),
-    region: process.env.AWS_REGION!,
-    hostname: process.env.PGHOST!,
-    username: PG_USER,
-    port: PG_PORT,
-  });
+  if (!connectionString) {
+    throw new Error(
+      "Nenhuma connection string do Neon encontrada (NEON_DATABASE_URL)."
+    );
+  }
 
   return new Pool({
-    host: process.env.PGHOST,
-    database: process.env.PGDATABASE || "postgres",
-    port: PG_PORT,
-    user: PG_USER,
-    // O token pode ser cacheado por até 15 min; o pg o solicita a cada nova conexão.
-    password: () => signer.getAuthToken(),
+    connectionString,
     ssl: { rejectUnauthorized: false },
     max: 20,
   });
