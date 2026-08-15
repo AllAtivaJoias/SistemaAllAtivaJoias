@@ -139,7 +139,13 @@ async function applyBaseline(url) {
   const sql = readFileSync(
     path.join(root, "prisma", "migrations_archive", "fresh_install_baseline.sql"),
     "utf8"
-  );
+  ).replaceAll("\uFEFF", "");
+
+  if (!sql.trim()) {
+    throw new Error("Baseline SQL is empty after load.");
+  }
+
+  console.log("[database] Applying baseline schema");
 
   await withClient(url, async (client) => {
     await client.query("BEGIN");
