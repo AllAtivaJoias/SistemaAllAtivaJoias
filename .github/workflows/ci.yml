@@ -38,9 +38,7 @@ jobs:
       - run: npm ci
       - run: npx prisma validate
       - run: npx prisma generate
-      # Cadeia 20260717* não cria o schema do zero (assume Ingredient/RecipeItem).
-      # Banco vazio de CI: materializa schema.prisma sem --accept-data-loss.
-      - run: npx prisma db push --skip-generate
+      - run: node scripts/migrate-deploy.mjs
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
@@ -71,7 +69,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - run: npx prisma db push --skip-generate
+      - run: node scripts/migrate-deploy.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e

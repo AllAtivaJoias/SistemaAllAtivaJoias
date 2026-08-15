@@ -5,14 +5,14 @@
 | Ambiente | Comando de schema | Build |
 |---|---|---|
 | Desenvolvimento | `npm run db:migrate` (`prisma migrate dev`) | `npm run dev` |
-| Produção (Vercel) | `prisma migrate deploy` (via `build:production`) | `next build` |
+| Produção (Vercel) | `node scripts/migrate-deploy.mjs` (via `build:production`) | `next build` |
 
 O script `build` **não** aplica schema. Só gera o client Prisma e compila o Next.js.
 
 ## Variáveis obrigatórias
 
 - `POSTGRES_PRISMA_URL` — conexão pooled (runtime)
-- `POSTGRES_URL_NON_POOLING` — conexão direta (migrations)
+- `POSTGRES_URL_NON_POOLING` — conexão **direta** (migrations). No Supabase: host `db.<ref>.supabase.co`, não `pooler`.
 - `AUTH_SECRET` — segredo JWT (gere com `npx auth secret`)
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` — bootstrap do primeiro admin (mín. 8 caracteres; ignorados se já existir `User`)
 - `BLOB_READ_WRITE_TOKEN` — upload de imagens
@@ -29,7 +29,7 @@ Se `_prisma_migrations` estiver vazia mas as tabelas de joalheria já existirem:
 2. Marque as migrations históricas já refletidas no banco com `prisma migrate resolve --applied <nome>`.
 3. `npx prisma migrate deploy` aplica só o que falta (`20260815*`: Decimal, ficha, BOM snapshot, User, auditoria, status).
 
-Banco **vazio**: use `prisma/migrations_archive/fresh_install_baseline.sql` uma vez, depois `resolve --applied` em todas as pastas. Não use `--accept-data-loss`.
+Banco **vazio** (Supabase novo): `scripts/migrate-deploy.mjs` aplica `fresh_install_baseline.sql` e marca a cadeia histórica como aplicada. Se o deploy anterior falhou em `20260717190000_jewelry_refactor` (P3018 / `Ingredient` inexistente), o script faz `resolve --rolled-back` e segue o baseline. Não use `--accept-data-loss`.
 
 Se uma migration nova falhar no meio:
 

@@ -37,9 +37,9 @@ O primeiro usuário administrador é criado automaticamente **somente se a tabel
 |---|---|
 | `npm run dev` | Desenvolvimento |
 | `npm run build` | `prisma generate` + `next build` — **não altera o schema** |
-| `npm run build:production` | `prisma migrate deploy` + generate + build (Vercel) |
+| `npm run build:production` | baseline/migrate + generate + build (Vercel) |
 | `npm run db:migrate` | `prisma migrate dev` |
-| `npm run db:deploy` | `prisma migrate deploy` |
+| `npm run db:deploy` | `scripts/migrate-deploy.mjs` (baseline em banco vazio, senão migrate deploy) |
 | `npm run db:validate` | `prisma validate` |
 | `npm run db:status` | `prisma migrate status` |
 | `npm run typecheck` | `tsc --noEmit` |
@@ -69,8 +69,9 @@ Rotas `/admin/*` exigem sessão (middleware + layout). APIs administrativas usam
 ## Deploy (Vercel)
 
 1. Variáveis: `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`, `AUTH_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` (bootstrap), `BLOB_READ_WRITE_TOKEN`.
-2. `vercel.json` usa `npm run build:production` → `prisma migrate deploy` + generate + `next build`.
-3. Se o banco foi criado no passado só com `db push` (sem `_prisma_migrations`), `migrate deploy` pode falhar. Marque as migrations já equivalentes como aplicadas:
+2. `vercel.json` usa `npm run build:production` → `scripts/migrate-deploy.mjs` + generate + `next build`.
+   Banco vazio: o script aplica o baseline e marca as migrations históricas (não roda o RENAME de `Ingredient`).
+3. Se o banco foi criado no passado só com `db push` (sem `_prisma_migrations`), marque as migrations já equivalentes como aplicadas:
 
    `npx prisma migrate resolve --applied 20260717190000_jewelry_refactor`  
    (repita para cada migration já refletida no schema, **sem** reexecutar SQL destrutivo.)

@@ -17,7 +17,9 @@ export function createNeonPool(): Pool {
 
   const useSsl =
     /sslmode=require/i.test(connectionString) ||
-    /neon\.tech/i.test(connectionString);
+    /neon\.tech/i.test(connectionString) ||
+    /supabase\.(co|com)/i.test(connectionString) ||
+    /pooler\.supabase/i.test(connectionString);
 
   return new Pool({
     connectionString,
