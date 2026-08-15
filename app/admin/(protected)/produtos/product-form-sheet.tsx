@@ -57,7 +57,7 @@ const productFormSchema = z.object({
     .max(64, "Código do produto muito longo (máx. 64 caracteres)."),
   description: z.string(),
   imageUrl: z.string(),
-  price: z.string().min(1, "Informe o preço."),
+  price: z.string(),
   costPrice: z.string(),
   categoryId: z.string().min(1, "Selecione uma categoria."),
   isAvailable: z.boolean(),
@@ -122,7 +122,7 @@ export function ProductFormSheet({
     fd.set("productCode", values.productCode);
     fd.set("description", values.description);
     fd.set("imageUrl", values.imageUrl);
-    fd.set("price", values.price);
+    fd.set("price", values.price || "0");
     fd.set("costPrice", values.costPrice || "0");
     fd.set("categoryId", values.categoryId);
     if (values.isAvailable) fd.set("isAvailable", "on");
@@ -210,14 +210,9 @@ export function ProductFormSheet({
                 id="product-price"
                 inputMode="decimal"
                 placeholder="1200,00"
-                aria-invalid={Boolean(form.formState.errors.price)}
                 {...form.register("price")}
               />
-              {form.formState.errors.price && (
-                <p className="text-xs text-red-600">
-                  {form.formState.errors.price.message}
-                </p>
-              )}
+              <p className="text-xs text-stone-500">Opcional.</p>
             </div>
 
             <div className="space-y-2">
@@ -228,6 +223,7 @@ export function ProductFormSheet({
                 placeholder="0,00"
                 {...form.register("costPrice")}
               />
+              <p className="text-xs text-stone-500">Opcional.</p>
             </div>
           </div>
 
