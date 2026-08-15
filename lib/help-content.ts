@@ -7,7 +7,8 @@ export type HelpModuleKey =
   | "ficha-tecnica"
   | "insumos"
   | "produtos"
-  | "pdv";
+  | "pdv"
+  | "prompts";
 
 export interface HelpField {
   /** Nome do campo como aparece na tela */
@@ -268,6 +269,47 @@ export const helpContent: Record<HelpModuleKey, HelpModule> = {
       "Só aparecem produtos marcados como “Disponível” no catálogo.",
       "Depois de finalizar, acompanhe o pedido em Pedidos / Histórico e imprima a requisição de materiais se a oficina precisar.",
       "Se o cliente já conhece o código da peça, busque pelo SKU — é mais rápido que pelo nome.",
+    ],
+  },
+  prompts: {
+    title: "Biblioteca de Prompts",
+    summary:
+      "Aqui ficam os textos prontos que a equipe usa em IAs (imagens, catálogo, redes e descrições). Busque, copie e reutilize sem procurar em conversas ou blocos de notas.",
+    fields: [
+      {
+        name: "Título e descrição",
+        description:
+          "O título identifica o prompt na grade. A descrição explica para que ele serve, em uma olhada.",
+        example: "Pulseira de Ouro em Estúdio Premium — foto de catálogo com fundo sofisticado.",
+      },
+      {
+        name: "Categoria e finalidade",
+        description:
+          "Categoria é o tipo de joia ou tema. Finalidade é o uso: catálogo, Instagram, anúncio, SEO.",
+        example: "Pulseiras + Imagem de Catálogo.",
+      },
+      {
+        name: "Tags e ferramenta",
+        description:
+          "Tags afunilam a busca (ouro, luxo, fundo-preto). A ferramenta indica se o texto foi pensado para Midjourney, ChatGPT, etc.",
+      },
+      {
+        name: "Conteúdo e variáveis",
+        description:
+          "O texto vai exatamente como você colar na IA. Trechos entre chaves, como {MATERIAL}, são variáveis para preencher depois.",
+        example:
+          "Fotografia profissional de uma {TIPO_DE_JOIA} em {MATERIAL}, fundo {CENARIO}.",
+      },
+      {
+        name: "Copiar Prompt",
+        description:
+          "A ação principal: copia o texto e registra o uso. Depois é só colar no ChatGPT, Midjourney ou outra ferramenta.",
+      },
+    ],
+    tips: [
+      "Favorite os prompts do dia a dia para achá-los mais rápido.",
+      "Use Duplicar para criar uma variação sem reescrever do zero.",
+      "A busca encontra termos no título, na descrição, nas tags e no conteúdo.",
     ],
   },
 };

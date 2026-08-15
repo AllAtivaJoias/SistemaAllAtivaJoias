@@ -41,6 +41,7 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   auditLogs    AuditLog[]
+  aiPrompts    AiPrompt[]
 
   @@index([email])
   @@index([isActive])
@@ -373,4 +374,94 @@ model OrderItemBomLine {
   alloyMetalName String?
 
   @@index([orderItemId])
+}
+
+// ── Biblioteca de Prompts de IA ──────────────────────────────
+/// Taxonomia da biblioteca (ex.: Pulseiras, Anéis). Independente de Category
+/// do catálogo de produtos — finalidades de conteúdo, não de estoque.
+model AiPromptCategory {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String     @default("")
+  isActive    Boolean    @default(true)
+  order       Int        @default(0)
+  prompts     AiPrompt[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([order])
+  @@index([isActive])
+}
+
+/// Finalidade de uso (ex.: Imagem de Catálogo, Redes Sociais).
+model AiPromptPurpose {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String     @default("")
+  isActive    Boolean    @default(true)
+  order       Int        @default(0)
+  prompts     AiPrompt[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([order])
+  @@index([isActive])
+}
+
+model AiPromptTag {
+  id        String          @id @default(cuid())
+  name      String
+  slug      String          @unique
+  prompts   AiPromptOnTag[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+/// Junção explícita: permite evoluir (ex.: origem da tag) sem migrar implicit.
+model AiPromptOnTag {
+  promptId String
+  tagId    String
+  prompt   AiPrompt    @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  tag      AiPromptTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([promptId, tagId])
+  @@index([tagId])
+}
+
+model AiPrompt {
+  id          String           @id @default(cuid())
+  title       String
+  description String           @default("")
+  content     String           @db.Text
+  categoryId  String
+  category    AiPromptCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  purposeId   String
+  purpose     AiPromptPurpose  @relation(fields: [purposeId], references: [id], onDelete: Restrict)
+  /// Ferramenta alvo (ChatGPT, Midjourney, …). String controlada na aplicação.
+  tool        String           @default("")
+  language    String           @default("pt-BR")
+  /// Nomes das variáveis `{IDENT}` extraídas de `content` na gravação.
+  variables   String[]         @default([])
+  isFavorite  Boolean          @default(false)
+  isActive    Boolean          @default(true)
+  usageCount  Int              @default(0)
+  authorId    String?
+  author      User?            @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  tags        AiPromptOnTag[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([categoryId])
+  @@index([purposeId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([isFavorite])
+  @@index([isActive])
+  @@index([tool])
+  @@index([usageCount])
+  @@index([authorId])
+  @@index([isActive, createdAt])
+  @@index([isActive, isFavorite, createdAt])
 }

@@ -17,6 +17,7 @@ import {
   Package,
   Palette,
   ShoppingCart,
+  Sparkles,
   Tags,
   X,
 } from "lucide-react";
@@ -40,6 +41,7 @@ const links = [
   },
   { href: "/admin/pedidos/historico", label: "Histórico", icon: History },
   { href: "/admin/aparencia", label: "Aparência", icon: Palette },
+  { href: "/admin/prompts", label: "Biblioteca de Prompts", icon: Sparkles },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
