@@ -6,6 +6,14 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
+import {
+  combinedCaFilePath,
+  needsSsl,
+  pgClientConfig,
+  prismaSslUrl,
+  safeHostname,
+  sanitizeDbError,
+} from "../lib/pg-ssl.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FAILED_JEWELRY = "20260717190000_jewelry_refactor";
@@ -31,7 +39,7 @@ function migrateUrl() {
 
   if (!url) {
     console.error(
-      "[migrate-deploy] Defina POSTGRES_URL_NON_POOLING (direta) ou POSTGRES_PRISMA_URL / DATABASE_URL."
+      "[database] Defina POSTGRES_URL_NON_POOLING (direta) ou POSTGRES_PRISMA_URL / DATABASE_URL."
     );
     process.exit(1);
   }
@@ -39,21 +47,17 @@ function migrateUrl() {
   return url;
 }
 
-function sslFor(url) {
-  const useSsl =
-    /sslmode=require/i.test(url) ||
-    /supabase\.(co|com)/i.test(url) ||
-    /pooler\.supabase/i.test(url) ||
-    /neon\.tech/i.test(url);
-  return useSsl ? { rejectUnauthorized: true } : undefined;
-}
-
 function prismaEnv(url) {
+  const directUrl = prismaSslUrl(url);
+  const pooled = process.env.POSTGRES_PRISMA_URL
+    ? prismaSslUrl(process.env.POSTGRES_PRISMA_URL)
+    : directUrl;
   return {
     ...process.env,
-    POSTGRES_URL_NON_POOLING: process.env.POSTGRES_URL_NON_POOLING || url,
-    POSTGRES_PRISMA_URL: process.env.POSTGRES_PRISMA_URL || url,
-    DATABASE_URL: url,
+    POSTGRES_URL_NON_POOLING: directUrl,
+    POSTGRES_PRISMA_URL: pooled,
+    DATABASE_URL: directUrl,
+    ...(needsSsl(url) ? { PGSSLROOTCERT: combinedCaFilePath() } : {}),
   };
 }
 
@@ -78,10 +82,7 @@ function migrationNames() {
 }
 
 async function withClient(url, fn) {
-  const client = new pg.Client({
-    connectionString: url,
-    ssl: sslFor(url),
-  });
+  const client = new pg.Client(pgClientConfig(url));
   await client.connect();
   try {
     return await fn(client);
@@ -156,11 +157,20 @@ async function main() {
   const url = migrateUrl();
   const env = prismaEnv(url);
 
+  console.log("[database] Connecting...");
+  console.log(`[database] Host: ${safeHostname(url)}`);
+  if (needsSsl(url)) {
+    console.log("[database] SSL enabled (verify-full, provider CA + Node trust store)");
+  } else {
+    console.log("[database] SSL not required for this host");
+  }
+
   let state = await inspect(url);
+  console.log("[database] Schema inspection completed");
 
   if (state.failed.includes(FAILED_JEWELRY) && !state.hasIngredient) {
     console.log(
-      `[migrate-deploy] Recuperando ${FAILED_JEWELRY} (Ingredient inexistente; P3018/42P01).`
+      `[database] Recovering ${FAILED_JEWELRY} (Ingredient missing; P3018/42P01).`
     );
     runPrisma(["migrate", "resolve", "--rolled-back", FAILED_JEWELRY], env);
     state = await inspect(url);
@@ -168,20 +178,25 @@ async function main() {
 
   if (isEmptyAppDb(state)) {
     console.log(
-      "[migrate-deploy] Banco vazio: aplicando baseline (schema atual) e marcando a cadeia histórica como aplicada."
+      "[database] Empty database: applying baseline and marking historical migrations as applied."
     );
     await applyBaseline(url);
     for (const name of migrationNames()) {
       runPrisma(["migrate", "resolve", "--applied", name], env);
     }
-    console.log("[migrate-deploy] Baseline concluído.");
+    console.log("[database] Migration completed successfully");
     return;
   }
 
+  console.log("[database] Running migrations...");
   runPrisma(["migrate", "deploy"], env);
+  console.log("[database] Migration completed successfully");
 }
 
 main().catch((error) => {
-  console.error("[migrate-deploy]", error);
+  const { code, message } = sanitizeDbError(error);
+  console.error("[database] Migration failed");
+  console.error(`[database] Error code: ${code}`);
+  console.error(`[database] ${message}`);
   process.exit(1);
 });

@@ -1,4 +1,5 @@
-import { Pool } from "pg";
+import { Pool, type PoolConfig } from "pg";
+import { pgClientConfig } from "./pg-ssl.mjs";
 
 // Pool `pg` para o adapter do Prisma. Prefere a URL pooled do runtime
 // (POSTGRES_PRISMA_URL / Neon) e cai para DATABASE_URL.
@@ -15,15 +16,13 @@ export function createNeonPool(): Pool {
     );
   }
 
-  const useSsl =
-    /sslmode=require/i.test(connectionString) ||
-    /neon\.tech/i.test(connectionString) ||
-    /supabase\.(co|com)/i.test(connectionString) ||
-    /pooler\.supabase/i.test(connectionString);
-
-  return new Pool({
-    connectionString,
-    ...(useSsl ? { ssl: { rejectUnauthorized: true } } : {}),
+  const tlsConfig = pgClientConfig(connectionString);
+  const poolConfig: PoolConfig = {
+    connectionString: tlsConfig.connectionString,
     max: 20,
-  });
+  };
+  if (tlsConfig.ssl) {
+    poolConfig.ssl = tlsConfig.ssl;
+  }
+  return new Pool(poolConfig);
 }

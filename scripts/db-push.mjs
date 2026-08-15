@@ -4,6 +4,7 @@
 import { spawnSync } from "node:child_process";
 import { Signer } from "@aws-sdk/rds-signer";
 import { awsCredentialsProvider } from "@vercel/functions/oidc";
+import { prismaSslUrl } from "../lib/pg-ssl.mjs";
 
 const host = process.env.PGHOST;
 const port = Number(process.env.PGPORT ?? 5432);
@@ -29,9 +30,11 @@ const signer = new Signer({
 });
 
 const token = await signer.getAuthToken();
-const databaseUrl = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(
-  token
-)}@${host}:${port}/${encodeURIComponent(database)}?sslmode=require`;
+const databaseUrl = prismaSslUrl(
+  `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(
+    token
+  )}@${host}:${port}/${encodeURIComponent(database)}?sslmode=verify-full`
+);
 
 const result = spawnSync(
   "npx",

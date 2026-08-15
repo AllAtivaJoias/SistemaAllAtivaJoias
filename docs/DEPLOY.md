@@ -19,6 +19,8 @@ O script `build` **não** aplica schema. Só gera o client Prisma e compila o Ne
 
 Nunca commite `.env`.
 
+SSL/TLS, CAs do provedor, variáveis da Vercel e diagnóstico de `SELF_SIGNED_CERT_IN_CHAIN`: ver `docs/deployment-database.md`.
+
 ## Banco legado (criado com `db push`)
 
 As migrations `20260717*` / `20260804*` **não** criam o schema do zero (renomeiam `Ingredient` → `Material`). Ver `prisma/migrations_archive/README.md`.
