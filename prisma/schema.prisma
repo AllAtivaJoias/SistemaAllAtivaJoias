@@ -8,6 +8,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
+  // CLI / migrations: POSTGRES_PRISMA_URL (pooled) + POSTGRES_URL_NON_POOLING (direta).
+  // Runtime: driver adapter em lib/prisma.ts (pool `pg` via lib/pg-pool.ts).
   url       = env("POSTGRES_PRISMA_URL")
   directUrl = env("POSTGRES_URL_NON_POOLING")
 }
