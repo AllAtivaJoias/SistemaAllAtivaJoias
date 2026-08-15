@@ -2,15 +2,28 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-guard";
 import { writeAuditLog } from "@/lib/audit";
+import { logger } from "@/lib/logger";
+import { prismaDecimal } from "@/lib/decimal";
+import {
+  buildStoneName,
+  partitionStoneBatch,
+  stoneBatchSchema,
+  stoneIdentityKey,
+  type StoneIdentity,
+} from "@/lib/stone";
 
 export type InsumoActionState = {
   error?: string;
   success?: boolean;
   message?: string;
+  created?: number;
+  skipped?: number;
+  skippedNames?: string[];
 };
 
 function revalidateAll() {
@@ -36,16 +49,6 @@ const optionalNumber = z
   .transform((v) => (v === undefined ? null : v));
 
 const requiredNumber = z.number().nonnegative();
-
-const stoneSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().trim().min(1, "Informe o nome da pedra."),
-  cut: z.string().trim().min(1).default("brilhante"),
-  color: z.string().trim().min(1).default("branco"),
-  sizeMm: optionalNumber,
-  weightCt: requiredNumber,
-  unitPrice: requiredNumber,
-});
 
 const chainSchema = z.object({
   id: z.string().optional(),
@@ -82,6 +85,34 @@ function zodError(err: z.ZodError): string {
   return err.issues[0]?.message ?? "Dados inválidos. Verifique o formulário.";
 }
 
+function prismaKnown(error: unknown): Prisma.PrismaClientKnownRequestError | null {
+  return error instanceof Prisma.PrismaClientKnownRequestError ? error : null;
+}
+
+function stoneDbError(error: unknown, fallback: string): string {
+  const known = prismaKnown(error);
+  if (known?.code === "P2002") {
+    return "Já existe uma pedra com essa lapidação, cor e dimensão.";
+  }
+  if (known?.code === "P2003") {
+    return "Esta pedra está em uso em uma ordem e não pode ser excluída.";
+  }
+  if (known?.code === "P2025") {
+    return "Pedra não encontrada.";
+  }
+  logger.error("insumo.stone.db", { code: known?.code ?? "unknown" });
+  return fallback;
+}
+
+function identitiesFromColors(
+  cut: string,
+  widthMm: number,
+  lengthMm: number | null,
+  colors: string[]
+): StoneIdentity[] {
+  return colors.map((color) => ({ cut, color, widthMm, lengthMm }));
+}
+
 // ─────────────────────────────────────────────────────────────
 // Pedras
 // ─────────────────────────────────────────────────────────────
@@ -91,33 +122,131 @@ export async function saveStone(
 ): Promise<InsumoActionState> {
   const session = await requireAdmin();
 
-  const parsed = stoneSchema.safeParse(input);
+  const parsed = stoneBatchSchema.safeParse(input);
   if (!parsed.success) return { error: zodError(parsed.error) };
 
-  const { id, ...data } = parsed.data;
+  const data = parsed.data;
+  const { id, cut, widthMm, lengthMm, colors, weightCt, unitPrice } = data;
 
   try {
     if (id) {
-      await prisma.stone.update({ where: { id }, data });
+      const color = colors[0];
+      const name = buildStoneName({ cut, color, widthMm, lengthMm });
+      const candidates = await prisma.stone.findMany({
+        where: { id: { not: id }, widthMm, lengthMm },
+        select: { id: true, cut: true, color: true, widthMm: true, lengthMm: true },
+      });
+      const incoming: StoneIdentity = { cut, color, widthMm, lengthMm };
+      const clash = candidates.some(
+        (row) =>
+          stoneIdentityKey({
+            cut: row.cut,
+            color: row.color,
+            widthMm: Number(row.widthMm),
+            lengthMm: row.lengthMm == null ? null : Number(row.lengthMm),
+          }) === stoneIdentityKey(incoming)
+      );
+      if (clash) {
+        return { error: `${name} já existe.` };
+      }
+
+      await prisma.stone.update({
+        where: { id },
+        data: {
+          name,
+          cut,
+          color,
+          widthMm: prismaDecimal(widthMm),
+          lengthMm: lengthMm == null ? null : prismaDecimal(lengthMm),
+          weightCt: prismaDecimal(weightCt),
+          unitPrice: prismaDecimal(unitPrice),
+        },
+      });
       auditInsumo(session.user.id, "STONE_UPDATE", "Stone", id, {
-        name: data.name,
-        unitPrice: data.unitPrice,
+        name,
+        unitPrice,
       });
       revalidateAll();
-      return { success: true, message: "Pedra atualizada com sucesso." };
+      return { success: true, message: "Pedra atualizada com sucesso.", created: 0 };
     }
-    const created = await prisma.stone.create({ data });
-    auditInsumo(session.user.id, "STONE_CREATE", "Stone", created.id, {
-      name: data.name,
-      unitPrice: data.unitPrice,
+
+    const incoming = identitiesFromColors(cut, widthMm, lengthMm, colors);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const candidates = await tx.stone.findMany({
+        where: { widthMm, lengthMm },
+        select: { cut: true, color: true, widthMm: true, lengthMm: true },
+      });
+      const existing: StoneIdentity[] = candidates.map((row) => ({
+        cut: row.cut,
+        color: row.color,
+        widthMm: Number(row.widthMm),
+        lengthMm: row.lengthMm == null ? null : Number(row.lengthMm),
+      }));
+      const { toCreate, skipped } = partitionStoneBatch(existing, incoming);
+      if (toCreate.length === 0) {
+        return { created: 0, skipped };
+      }
+
+      await tx.stone.createMany({
+        data: toCreate.map((item) => ({
+          name: buildStoneName(item),
+          cut: item.cut,
+          color: item.color,
+          widthMm: prismaDecimal(item.widthMm),
+          lengthMm:
+            item.lengthMm == null ? null : prismaDecimal(item.lengthMm),
+          weightCt: prismaDecimal(weightCt),
+          unitPrice: prismaDecimal(unitPrice),
+        })),
+      });
+      return { created: toCreate.length, skipped };
+    });
+
+    const skippedNames = result.skipped.map((item) => buildStoneName(item));
+    if (result.created === 0) {
+      return {
+        error:
+          skippedNames.length === 1
+            ? `${skippedNames[0]} já existe.`
+            : `Nenhuma pedra nova: ${skippedNames.join(", ")} já existem.`,
+        created: 0,
+        skipped: result.skipped.length,
+        skippedNames,
+      };
+    }
+
+    auditInsumo(session.user.id, "STONE_CREATE_BATCH", "Stone", null, {
+      created: result.created,
+      skipped: result.skipped.length,
+      cut,
+      widthMm,
+      lengthMm,
     });
     revalidateAll();
-    return { success: true, message: "Pedra cadastrada com sucesso." };
-  } catch {
+
+    const createdLabel =
+      result.created === 1
+        ? "1 pedra cadastrada"
+        : `${result.created} pedras cadastradas`;
+    const skipLabel =
+      result.skipped.length === 0
+        ? ""
+        : ` · ${result.skipped.length} já existiam (${skippedNames.join(", ")})`;
+
     return {
-      error: id
-        ? "Não foi possível atualizar a pedra."
-        : "Não foi possível cadastrar a pedra.",
+      success: true,
+      message: `${createdLabel}${skipLabel}.`,
+      created: result.created,
+      skipped: result.skipped.length,
+      skippedNames,
+    };
+  } catch (error) {
+    return {
+      error: stoneDbError(
+        error,
+        id ? "Não foi possível atualizar a pedra." : "Não foi possível cadastrar as pedras."
+      ),
     };
   }
 }
@@ -127,8 +256,8 @@ export async function deleteStone(id: string): Promise<InsumoActionState> {
   if (!id) return { error: "Pedra inválida." };
   try {
     await prisma.stone.delete({ where: { id } });
-  } catch {
-    return { error: "Não foi possível excluir a pedra." };
+  } catch (error) {
+    return { error: stoneDbError(error, "Não foi possível excluir a pedra.") };
   }
   auditInsumo(session.user.id, "STONE_DELETE", "Stone", id);
   revalidateAll();

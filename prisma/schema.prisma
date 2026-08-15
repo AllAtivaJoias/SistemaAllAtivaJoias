@@ -141,6 +141,7 @@ model Material {
   attrCut          String?
   attrColor        String?
   attrSizeMm       Decimal?          @db.Decimal(14, 4)
+  attrLengthMm     Decimal?          @db.Decimal(14, 4)
   attrMaterial     String?
   attrMesh         String?
   attrProfile      String?
@@ -186,7 +187,8 @@ model Stone {
   name         String
   cut          String              @default("brilhante")
   color        String              @default("branco")
-  sizeMm       Decimal?            @db.Decimal(14, 4)
+  widthMm      Decimal?            @db.Decimal(14, 4)
+  lengthMm     Decimal?            @db.Decimal(14, 4)
   weightCt     Decimal             @default(0) @db.Decimal(14, 4)
   unitPrice    Decimal             @default(0) @db.Decimal(14, 4)
   patternItems SupplyPatternItem[]
@@ -196,8 +198,8 @@ model Stone {
   @@index([name])
   @@index([cut])
   @@index([color])
-  @@index([sizeMm])
-  @@index([cut, color, sizeMm])
+  @@index([widthMm])
+  @@index([cut, color, widthMm, lengthMm])
 }
 
 model Chain {
@@ -346,6 +348,7 @@ model OrderItemBomLine {
   attrCut       String?
   attrColor     String?
   attrSizeMm    Decimal?  @db.Decimal(14, 4)
+  attrLengthMm  Decimal?  @db.Decimal(14, 4)
   attrMaterial  String?
   attrMesh      String?
   attrProfile   String?

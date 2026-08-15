@@ -20,6 +20,7 @@ describe("snapshot da BOM na requisição", () => {
         attrCut: null,
         attrColor: null,
         attrSizeMm: null,
+        attrLengthMm: null,
         attrMaterial: "Ouro 18k",
         attrMesh: null,
         attrProfile: null,

@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { Chain, MetalAlloy, Stone } from "@prisma/client";
+import { buildStoneName, formatStoneDimension } from "@/lib/stone";
 import type { Numbers } from "@/lib/decimal";
 
 type StoneDTO = Numbers<Stone>;
@@ -75,7 +76,14 @@ export type SupplyPatternRow = {
     alloyId: string | null;
     chainId: string | null;
     wireId: string | null;
-    stone?: { id: string; name: string; cut: string; color: string; sizeMm: number | null } | null;
+    stone?: {
+      id: string;
+      name: string;
+      cut: string;
+      color: string;
+      widthMm: number | null;
+      lengthMm: number | null;
+    } | null;
     alloy?: { id: string; name: string } | null;
     chain?: { id: string; name: string; mesh: string } | null;
     wire?: { id: string; name: string } | null;
@@ -232,13 +240,16 @@ export function PatternFormDialog({
   const sizeOptions = useMemo(() => {
     const map = new Map<string, number>();
     for (const s of stones) {
-      if (s.sizeMm == null) continue;
-      const label = String(s.sizeMm);
+      const label = formatStoneDimension({
+        widthMm: s.widthMm,
+        lengthMm: s.lengthMm,
+      });
+      if (label === "Sem medida") continue;
       map.set(label, (map.get(label) ?? 0) + 1);
     }
     return [...map.entries()]
-      .map(([label, count]) => ({ value: label, label: `${label} mm`, count }))
-      .sort((a, b) => Number(a.value) - Number(b.value));
+      .map(([label, count]) => ({ value: label, label, count }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
   }, [stones]);
 
   const filteredStones = useMemo(() => {
@@ -246,7 +257,11 @@ export function PatternFormDialog({
       if (cuts.size > 0 && !cuts.has(normalize(s.cut))) return false;
       if (colors.size > 0 && !colors.has(normalize(s.color))) return false;
       if (sizes.size > 0) {
-        if (s.sizeMm == null || !sizes.has(String(s.sizeMm))) return false;
+        const dim = formatStoneDimension({
+          widthMm: s.widthMm,
+          lengthMm: s.lengthMm,
+        });
+        if (!sizes.has(dim)) return false;
       }
       return true;
     });
@@ -466,9 +481,12 @@ export function PatternFormDialog({
                               <SelectContent>
                                 {filteredStones.map((s) => (
                                   <SelectItem key={s.id} value={s.id}>
-                                    {[s.name, s.cut, s.color, s.sizeMm != null ? `${s.sizeMm}mm` : null]
-                                      .filter(Boolean)
-                                      .join(" · ")}
+                                    {buildStoneName({
+                                      cut: s.cut,
+                                      color: s.color,
+                                      widthMm: s.widthMm,
+                                      lengthMm: s.lengthMm,
+                                    })}
                                   </SelectItem>
                                 ))}
                               </SelectContent>

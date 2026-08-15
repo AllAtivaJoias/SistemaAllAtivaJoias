@@ -36,6 +36,7 @@ export type HistoricoOrderRow = {
       attrCut?: string | null;
       attrColor?: string | null;
       attrSizeMm?: number | null;
+      attrLengthMm?: number | null;
       attrMaterial?: string | null;
       attrMesh?: string | null;
       attrProfile?: string | null;

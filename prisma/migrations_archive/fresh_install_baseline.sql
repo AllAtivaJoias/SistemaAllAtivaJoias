@@ -107,6 +107,7 @@ CREATE TABLE "Material" (
     "attrCut" TEXT,
     "attrColor" TEXT,
     "attrSizeMm" DECIMAL(14,4),
+    "attrLengthMm" DECIMAL(14,4),
     "attrMaterial" TEXT,
     "attrMesh" TEXT,
     "attrProfile" TEXT,
@@ -142,7 +143,8 @@ CREATE TABLE "Stone" (
     "name" TEXT NOT NULL,
     "cut" TEXT NOT NULL DEFAULT 'brilhante',
     "color" TEXT NOT NULL DEFAULT 'branco',
-    "sizeMm" DECIMAL(14,4),
+    "widthMm" DECIMAL(14,4),
+    "lengthMm" DECIMAL(14,4),
     "weightCt" DECIMAL(14,4) NOT NULL DEFAULT 0,
     "unitPrice" DECIMAL(14,4) NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -270,6 +272,7 @@ CREATE TABLE "OrderItemBomLine" (
     "attrCut" TEXT,
     "attrColor" TEXT,
     "attrSizeMm" DECIMAL(14,4),
+    "attrLengthMm" DECIMAL(14,4),
     "attrMaterial" TEXT,
     "attrMesh" TEXT,
     "attrProfile" TEXT,
@@ -382,10 +385,10 @@ CREATE INDEX "Stone_cut_idx" ON "Stone"("cut");
 CREATE INDEX "Stone_color_idx" ON "Stone"("color");
 
 -- CreateIndex
-CREATE INDEX "Stone_sizeMm_idx" ON "Stone"("sizeMm");
+CREATE INDEX "Stone_widthMm_idx" ON "Stone"("widthMm");
 
 -- CreateIndex
-CREATE INDEX "Stone_cut_color_sizeMm_idx" ON "Stone"("cut", "color", "sizeMm");
+CREATE INDEX "Stone_cut_color_widthMm_lengthMm_idx" ON "Stone"("cut", "color", "widthMm", "lengthMm");
 
 -- CreateIndex
 CREATE INDEX "Chain_name_idx" ON "Chain"("name");

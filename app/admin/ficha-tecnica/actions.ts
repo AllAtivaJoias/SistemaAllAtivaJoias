@@ -13,6 +13,7 @@ import {
 import { roundMoney2, roundMoney4, roundQty4, asClient } from "@/lib/decimal";
 import { writeAuditLog } from "@/lib/audit";
 import { logger } from "@/lib/logger";
+import { buildStoneName } from "@/lib/stone";
 
 export type FichaActionState = {
   error?: string;
@@ -92,17 +93,17 @@ function resolveMaterialName(line: SaveFichaMaterial): string {
   const raw = line.name.trim();
   if (line.type !== "gema") return raw;
 
-  const root = raw.split(" · ")[0]?.trim() || raw;
   const cut = line.attrCut?.trim() || "";
   const color = line.attrColor?.trim() || "";
-  const size =
-    line.attrSizeMm !== null && line.attrSizeMm !== undefined
-      ? `${line.attrSizeMm}mm`
-      : "";
-
-  const parts = [root, cut, color, size].filter(Boolean);
-  if (parts.length === 1) return root;
-  return parts.join(" · ");
+  if (cut || color || line.attrSizeMm != null) {
+    return buildStoneName({
+      cut,
+      color,
+      widthMm: line.attrSizeMm,
+      lengthMm: line.attrLengthMm,
+    });
+  }
+  return raw;
 }
 
 function toSaveLine(
@@ -122,6 +123,7 @@ function toSaveLine(
     attrCut: leaf.attrCut,
     attrColor: leaf.attrColor,
     attrSizeMm: leaf.attrSizeMm,
+    attrLengthMm: leaf.attrLengthMm,
     attrMaterial: leaf.attrMaterial,
     attrMesh: leaf.attrMesh,
     attrProfile: leaf.attrProfile,
@@ -235,6 +237,7 @@ export async function saveFichaTecnica(
         attrCut: line.attrCut?.trim() || null,
         attrColor: line.attrColor?.trim() || null,
         attrSizeMm: line.attrSizeMm ?? null,
+        attrLengthMm: line.attrLengthMm ?? null,
         attrMaterial: line.attrMaterial ?? null,
         attrMesh: line.attrMesh ?? null,
         attrProfile: line.attrProfile ?? null,

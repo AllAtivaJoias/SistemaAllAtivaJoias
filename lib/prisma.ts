@@ -6,49 +6,66 @@ import { createNeonPool } from "./pg-pool";
 
 import { serializeDecimals } from "@/lib/decimal";
 
+function extendClient(base: PrismaClient) {
+  return base.$extends({
+    query: {
+      async $allOperations({
+        args,
+        query,
+      }: {
+        args: unknown;
+        query: (args: unknown) => Promise<unknown>;
+      }) {
+        const result = await query(args);
+        return serializeDecimals(result);
+      },
+    },
+  });
+}
+
+type AppPrisma = ReturnType<typeof extendClient>;
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
+  prismaExtended: AppPrisma | undefined;
   pgPool: Pool | undefined;
 };
 
-// Runtime usa o driver adapter (@prisma/adapter-pg) + pool `pg`.
-// Em serverless (Vercel) o pool é registrado para drenar conexões ociosas.
-function createPool(): Pool {
-  const pool = createNeonPool();
-  attachDatabasePool(pool);
-  return pool;
+function getPool(): Pool {
+  if (!globalForPrisma.pgPool) {
+    const pool = createNeonPool();
+    attachDatabasePool(pool);
+    globalForPrisma.pgPool = pool;
+  }
+  return globalForPrisma.pgPool;
 }
 
-const pool = globalForPrisma.pgPool ?? createPool();
+function getBase(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = new PrismaClient({
+      adapter: new PrismaPg(getPool()),
+      log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    });
+  }
+  return globalForPrisma.prisma;
+}
 
-const base =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter: new PrismaPg(pool),
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = base;
-  globalForPrisma.pgPool = pool;
+function getPrisma(): AppPrisma {
+  if (!globalForPrisma.prismaExtended) {
+    globalForPrisma.prismaExtended = extendClient(getBase());
+  }
+  return globalForPrisma.prismaExtended;
 }
 
 /**
  * Decimal do Prisma não é serializável para Client Components.
  * Leituras passam a number na borda da aplicação; o banco permanece DECIMAL.
  * TypeScript ainda descreve Decimal; converta com Number() na borda RSC → client.
+ *
+ * O client é lazy: `next build` importa o módulo sem exigir DATABASE_URL.
  */
-export const prisma = base.$extends({
-  query: {
-    async $allOperations({
-      args,
-      query,
-    }: {
-      args: unknown;
-      query: (args: unknown) => Promise<unknown>;
-    }) {
-      const result = await query(args);
-      return serializeDecimals(result);
-    },
+export const prisma: AppPrisma = new Proxy({} as AppPrisma, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getPrisma(), prop, receiver);
   },
 });

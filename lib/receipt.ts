@@ -31,6 +31,7 @@ type BomSnapshotLine = {
   attrCut?: string | null;
   attrColor?: string | null;
   attrSizeMm?: number | null;
+  attrLengthMm?: number | null;
   attrMaterial?: string | null;
   attrMesh?: string | null;
   attrProfile?: string | null;
@@ -73,6 +74,7 @@ function snapshotToComposition(
       attrCut: line.attrCut ?? null,
       attrColor: line.attrColor ?? null,
       attrSizeMm: line.attrSizeMm ?? null,
+      attrLengthMm: line.attrLengthMm ?? null,
       attrMaterial: line.attrMaterial ?? null,
       attrMesh: line.attrMesh ?? null,
       attrProfile: line.attrProfile ?? null,

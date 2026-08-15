@@ -38,19 +38,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { colorToHex, computeAlloy, karatToPurity } from "@/lib/jewelry-math";
+import { Badge } from "@/components/ui/badge";
+import {
+  STONE_CUTS,
+  DEFAULT_STONE_COLORS,
+  buildStoneName,
+  displayColor,
+  formatStoneDimension,
+  isDiameterCut,
+  normalizeColors,
+  stoneCutLabel,
+} from "@/lib/stone";
 
-const CUTS = [
-  "brilhante",
-  "navete",
-  "gota",
-  "oval",
-  "princesa",
-  "esmeralda",
-  "coração",
-  "gota pêra",
-  "redonda",
-  "quadrada",
-];
 const MESHES = [
   "veneziana",
   "cartier",
@@ -156,27 +155,40 @@ function SubmitButton({
 }
 
 // ─────────────────────────────────────────────────────────────
-// Pedra
+// Pedra — cadastro em lote (lapidação + dimensão + cores)
 // ─────────────────────────────────────────────────────────────
 
-const stoneFormSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().trim().min(1, "Informe o nome."),
-  cut: z.string().trim().min(1),
-  color: z.string().trim().min(1),
-  sizeMm: z.number().nonnegative().nullable(),
-  weightCt: z.number().nonnegative(),
-  unitPrice: z.number().nonnegative(),
-});
+const stoneFormSchema = z
+  .object({
+    id: z.string().optional(),
+    cut: z.string().trim().min(1, "Selecione a lapidação."),
+    widthMm: z
+      .number({ error: "Informe a medida em mm." })
+      .gt(0, "A medida deve ser maior que zero."),
+    lengthMm: z.number().gt(0).nullable(),
+    colors: z.array(z.string()).min(1, "Selecione pelo menos uma cor."),
+    weightCt: z.number().nonnegative(),
+    unitPrice: z.number().nonnegative(),
+  })
+  .superRefine((data, ctx) => {
+    if (isDiameterCut(data.cut)) return;
+    if (data.lengthMm == null || !(data.lengthMm > 0)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["lengthMm"],
+        message: "Informe o comprimento (mm).",
+      });
+    }
+  });
 
 type StoneFormValues = z.infer<typeof stoneFormSchema>;
 
 const emptyStone = (): StoneFormValues => ({
   id: undefined,
-  name: "",
   cut: "brilhante",
-  color: "branco",
-  sizeMm: null,
+  widthMm: 0,
+  lengthMm: null,
+  colors: [],
   weightCt: 0,
   unitPrice: 0,
 });
@@ -184,13 +196,155 @@ const emptyStone = (): StoneFormValues => ({
 function stoneToValues(stone: StoneDTO): StoneFormValues {
   return {
     id: stone.id,
-    name: stone.name,
     cut: stone.cut,
-    color: stone.color,
-    sizeMm: stone.sizeMm,
+    widthMm: stone.widthMm ?? 0,
+    lengthMm: stone.lengthMm,
+    colors: stone.color ? [stone.color] : [],
     weightCt: stone.weightCt,
     unitPrice: stone.unitPrice,
   };
+}
+
+function StoneColorMultiSelect({
+  colors,
+  onChange,
+  disabled,
+}: {
+  colors: string[];
+  onChange: (next: string[]) => void;
+  disabled?: boolean;
+}) {
+  const [draft, setDraft] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const suggestions = useMemo(() => {
+    const q = draft.trim().toLocaleLowerCase("pt-BR");
+    const selected = new Set(colors.map((c) => c.toLocaleLowerCase("pt-BR")));
+    const pool = [
+      ...DEFAULT_STONE_COLORS,
+      ...colors.filter(
+        (c) =>
+          !DEFAULT_STONE_COLORS.some(
+            (d) => d.toLocaleLowerCase("pt-BR") === c.toLocaleLowerCase("pt-BR")
+          )
+      ),
+    ];
+    return pool.filter((c) => {
+      const key = c.toLocaleLowerCase("pt-BR");
+      if (selected.has(key)) return false;
+      if (!q) return true;
+      return key.includes(q);
+    });
+  }, [draft, colors]);
+
+  function addColor(raw: string) {
+    const next = normalizeColors([...colors, raw]);
+    if (next.length === colors.length) return;
+    onChange(next);
+    setDraft("");
+    setActiveIndex(0);
+  }
+
+  function removeAt(index: number) {
+    onChange(colors.filter((_, i) => i !== index));
+  }
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter" || event.key === ",") {
+      event.preventDefault();
+      if (suggestions[activeIndex]) addColor(suggestions[activeIndex]);
+      else addColor(draft);
+      return;
+    }
+    if (event.key === "Backspace" && draft === "" && colors.length > 0) {
+      event.preventDefault();
+      removeAt(colors.length - 1);
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, Math.max(suggestions.length - 1, 0)));
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="stone-colors">Cores</Label>
+      <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1.5 focus-within:ring-2 focus-within:ring-brand-500">
+        {colors.map((color, index) => (
+          <Badge
+            key={`${color}-${index}`}
+            variant="brand"
+            className="gap-1 pr-1"
+          >
+            <span
+              className="h-2.5 w-2.5 rounded-full border border-white/50"
+              style={{ backgroundColor: colorToHex(color) }}
+            />
+            {color}
+            <button
+              type="button"
+              aria-label={`Remover ${color}`}
+              disabled={disabled}
+              className="rounded p-0.5 hover:bg-brand-200/60"
+              onClick={() => removeAt(index)}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        ))}
+        <Input
+          id="stone-colors"
+          value={draft}
+          disabled={disabled}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setActiveIndex(0);
+          }}
+          onKeyDown={onKeyDown}
+          placeholder={colors.length === 0 ? "Branco, Rubi, Safira…" : "Adicionar cor"}
+          className="h-7 min-w-[8rem] flex-1 border-0 px-1 shadow-none focus-visible:ring-0"
+          autoComplete="off"
+        />
+      </div>
+      {suggestions.length > 0 && (
+        <div
+          role="listbox"
+          aria-label="Sugestões de cor"
+          className="flex flex-wrap gap-1.5"
+        >
+          {suggestions.map((color, index) => (
+            <button
+              key={color}
+              type="button"
+              role="option"
+              aria-selected={index === activeIndex}
+              disabled={disabled}
+              onClick={() => addColor(color)}
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
+                index === activeIndex
+                  ? "border-brand-400 bg-brand-50 text-brand-800"
+                  : "border-slate-200 text-slate-600 hover:border-brand-300"
+              }`}
+            >
+              <span
+                className="h-2.5 w-2.5 rounded-full border border-slate-300"
+                style={{ backgroundColor: colorToHex(color) }}
+              />
+              {color}
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="text-xs text-slate-500">
+        Enter ou vírgula adiciona. Backspace remove a última cor.
+      </p>
+    </div>
+  );
 }
 
 export function StoneFormDialog({
@@ -214,7 +368,35 @@ export function StoneFormDialog({
     defaultValues: emptyStone(),
   });
 
-  const color = form.watch("color");
+  const cut = form.watch("cut");
+  const widthMm = form.watch("widthMm");
+  const lengthMm = form.watch("lengthMm");
+  const colors = form.watch("colors");
+  const diameterOnly = isDiameterCut(cut);
+
+  const cutOptions = useMemo(() => {
+    const extra = cut && !STONE_CUTS.some((c) => c.value === cut);
+    return extra
+      ? [...STONE_CUTS, { value: cut, label: stoneCutLabel(cut), dimension: "wxh" as const }]
+      : [...STONE_CUTS];
+  }, [cut]);
+
+  const previewNames = useMemo(() => {
+    const normalized = normalizeColors(colors);
+    return normalized.map((color) =>
+      buildStoneName({
+        cut,
+        color,
+        widthMm: widthMm > 0 ? widthMm : null,
+        lengthMm: diameterOnly ? null : lengthMm,
+      })
+    );
+  }, [cut, colors, widthMm, lengthMm, diameterOnly]);
+
+  const dimensionLabel = formatStoneDimension({
+    widthMm: widthMm > 0 ? widthMm : null,
+    lengthMm: diameterOnly ? null : lengthMm,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -226,8 +408,13 @@ export function StoneFormDialog({
     setFormError(null);
     startTransition(async () => {
       const result = await saveStone({
-        ...values,
         id: values.id || undefined,
+        cut: values.cut,
+        widthMm: values.widthMm,
+        lengthMm: isDiameterCut(values.cut) ? null : values.lengthMm,
+        colors: values.colors,
+        weightCt: values.weightCt,
+        unitPrice: values.unitPrice,
       });
       if (result.error) {
         setFormError(result.error);
@@ -242,6 +429,12 @@ export function StoneFormDialog({
     });
   }
 
+  const submitLabel = isEditing
+    ? "Salvar alterações"
+    : previewNames.length > 1
+      ? `Cadastrar ${previewNames.length} pedras`
+      : "Cadastrar 1 pedra";
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -249,79 +442,137 @@ export function StoneFormDialog({
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {isEditing ? "Editar pedra" : "Nova pedra"}
+              {isEditing ? "Editar pedra" : "Nova pedra (lote)"}
             </DialogTitle>
             <DialogDescription>
-              Cadastre gemas com lapidação, cor e peso para usar no sequenciador.
+              Uma lapidação e dimensão, várias cores — cada cor vira um registro.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="stone-name">Nome</Label>
-              <Input
-                id="stone-name"
-                {...form.register("name")}
-                placeholder="Ex.: Zircônia rosa 2mm"
-                autoFocus
-              />
-              {form.formState.errors.name && (
+              <Label>Lapidação</Label>
+              <Select
+                value={cut}
+                onValueChange={(value) =>
+                  form.setValue("cut", value, { shouldValidate: true })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a lapidação" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cutOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.formState.errors.cut && (
                 <p className="text-xs text-red-600">
-                  {form.formState.errors.name.message}
+                  {form.formState.errors.cut.message}
                 </p>
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {diameterOnly ? (
               <div className="space-y-2">
-                <Label htmlFor="stone-cut">Formato / lapidação</Label>
+                <Label htmlFor="stone-width">Diâmetro (mm)</Label>
                 <Input
-                  id="stone-cut"
-                  list="cut-options"
-                  {...form.register("cut")}
-                  placeholder="brilhante"
+                  id="stone-width"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min={0.01}
+                  {...form.register("widthMm", { setValueAs: setRequiredNumber })}
+                  placeholder="2.5"
                 />
-                <datalist id="cut-options">
-                  {CUTS.map((c) => (
-                    <option key={c} value={c} />
-                  ))}
-                </datalist>
+                {form.formState.errors.widthMm && (
+                  <p className="text-xs text-red-600">
+                    {form.formState.errors.widthMm.message}
+                  </p>
+                )}
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="stone-color">Cor</Label>
-                <div className="relative">
-                  <span
-                    className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-slate-300"
-                    style={{ backgroundColor: colorToHex(color || "") }}
-                  />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="stone-width">Largura (mm)</Label>
                   <Input
-                    id="stone-color"
-                    className="pl-8"
-                    {...form.register("color")}
-                    placeholder="rosa"
+                    id="stone-width"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min={0.01}
+                    {...form.register("widthMm", {
+                      setValueAs: setRequiredNumber,
+                    })}
+                    placeholder="3"
                   />
+                  {form.formState.errors.widthMm && (
+                    <p className="text-xs text-red-600">
+                      {form.formState.errors.widthMm.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stone-length">Comprimento (mm)</Label>
+                  <Input
+                    id="stone-length"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min={0.01}
+                    {...form.register("lengthMm", {
+                      setValueAs: setOptionalNumber,
+                    })}
+                    placeholder="5"
+                  />
+                  {form.formState.errors.lengthMm && (
+                    <p className="text-xs text-red-600">
+                      {form.formState.errors.lengthMm.message}
+                    </p>
+                  )}
                 </div>
               </div>
-            </div>
+            )}
 
-            <div className="grid grid-cols-3 gap-3">
+            {isEditing ? (
               <div className="space-y-2">
-                <Label htmlFor="stone-size">Tamanho (mm)</Label>
+                <Label htmlFor="stone-color-single">Cor</Label>
                 <Input
-                  id="stone-size"
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  {...form.register("sizeMm", { setValueAs: setOptionalNumber })}
-                  placeholder="2.0"
+                  id="stone-color-single"
+                  value={colors[0] ?? ""}
+                  onChange={(e) =>
+                    form.setValue("colors", normalizeColors([e.target.value]), {
+                      shouldValidate: true,
+                    })
+                  }
+                  placeholder="Rubi"
                 />
               </div>
+            ) : (
+              <StoneColorMultiSelect
+                colors={colors}
+                onChange={(next) =>
+                  form.setValue("colors", next, { shouldValidate: true })
+                }
+                disabled={isPending}
+              />
+            )}
+            {form.formState.errors.colors && (
+              <p className="text-xs text-red-600">
+                {form.formState.errors.colors.message}
+              </p>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="stone-weight">Peso (ct)</Label>
+                <Label htmlFor="stone-weight">Peso médio (ct)</Label>
                 <Input
                   id="stone-weight"
                   type="number"
+                  inputMode="decimal"
                   step="0.001"
                   min={0}
                   {...form.register("weightCt", {
@@ -335,6 +586,7 @@ export function StoneFormDialog({
                 <Input
                   id="stone-price"
                   type="number"
+                  inputMode="decimal"
                   step="0.01"
                   min={0}
                   {...form.register("unitPrice", {
@@ -345,10 +597,40 @@ export function StoneFormDialog({
               </div>
             </div>
 
+            {previewNames.length > 0 && (
+              <div className="rounded-md border border-brand-200 bg-brand-50/60 px-3 py-2.5 text-sm text-brand-900">
+                <p className="font-medium">
+                  {isEditing
+                    ? "Você vai atualizar"
+                    : `Você está prestes a cadastrar ${previewNames.length} pedra${previewNames.length > 1 ? "s" : ""}`}{" "}
+                  {stoneCutLabel(cut)} {dimensionLabel !== "Sem medida" ? dimensionLabel : ""}
+                  {!isEditing && colors.length > 0
+                    ? ` nas cores ${colors.map(displayColor).join(", ")}.`
+                    : "."}
+                </p>
+                <p className="mt-1 text-xs text-brand-800/80">
+                  Lapidação: {stoneCutLabel(cut)} · Dimensão: {dimensionLabel} ·
+                  Quantidade: {previewNames.length}
+                </p>
+                <ul className="mt-2 max-h-28 list-disc space-y-0.5 overflow-y-auto pl-4 text-xs">
+                  {previewNames.map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {formError && <p className="text-sm text-red-600">{formError}</p>}
 
             <DialogFooter>
-              <SubmitButton isPending={isPending} isEditing={isEditing} />
+              <Button
+                type="submit"
+                disabled={isPending}
+                className="bg-brand-600 text-white hover:bg-brand-700"
+              >
+                {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isPending ? "Salvando..." : submitLabel}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

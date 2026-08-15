@@ -2,6 +2,7 @@
 // Pedras: round-robin pela Quantidade Total de Pedras.
 // Metais/correntes/fios: quantidade fixa cadastrada na Ordem (1 aplicação).
 
+import { buildStoneName } from "@/lib/stone";
 import { distributeRoundRobin, wireCostFromAlloy } from "@/lib/jewelry-math";
 import type { InsumoAttrs } from "@/lib/material-requisition";
 import type { MaterialType, Unit } from "@/lib/pricing";
@@ -13,7 +14,8 @@ export type ExpandableStone = {
   name: string;
   cut: string;
   color: string;
-  sizeMm: number | null;
+  widthMm: number | null;
+  lengthMm: number | null;
   unitPrice: number;
 };
 
@@ -85,7 +87,8 @@ export type StoneDistributionRow = {
   name: string;
   color: string;
   cut: string;
-  sizeMm: number | null;
+  widthMm: number | null;
+  lengthMm: number | null;
   unitPrice: number;
   count: number;
 };
@@ -94,6 +97,7 @@ const emptyAttrs = (): InsumoAttrs => ({
   attrCut: null,
   attrColor: null,
   attrSizeMm: null,
+  attrLengthMm: null,
   attrMaterial: null,
   attrMesh: null,
   attrProfile: null,
@@ -105,9 +109,12 @@ const emptyAttrs = (): InsumoAttrs => ({
 });
 
 function stoneName(stone: ExpandableStone): string {
-  return [stone.name, stone.cut, stone.color, stone.sizeMm != null ? `${stone.sizeMm}mm` : null]
-    .filter(Boolean)
-    .join(" · ");
+  return buildStoneName({
+    cut: stone.cut,
+    color: stone.color,
+    widthMm: stone.widthMm,
+    lengthMm: stone.lengthMm,
+  });
 }
 
 function sortedItems(pattern: ExpandablePattern): ExpandablePatternItem[] {
@@ -136,7 +143,8 @@ export function distributePatternStones(
       name: stoneName(s),
       color: s.color,
       cut: s.cut,
-      sizeMm: s.sizeMm,
+      widthMm: s.widthMm,
+      lengthMm: s.lengthMm,
       unitPrice: s.unitPrice,
       count: counts[index] ?? 0,
     };
@@ -183,7 +191,8 @@ export function expandPattern(
       patternName: pattern.name,
       attrCut: s.cut?.trim() || null,
       attrColor: s.color?.trim() || null,
-      attrSizeMm: s.sizeMm ?? null,
+      attrSizeMm: s.widthMm ?? null,
+      attrLengthMm: s.lengthMm ?? null,
     });
   });
 

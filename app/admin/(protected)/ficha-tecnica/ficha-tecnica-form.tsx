@@ -35,6 +35,7 @@ import {
 } from "@/lib/pricing";
 import { wireCostFromAlloy } from "@/lib/jewelry-math";
 import type { SequenceStone } from "@/lib/jewelry-math";
+import { buildStoneName } from "@/lib/stone";
 import type { InsumoAttrs } from "@/lib/material-requisition";
 import {
   expandPattern,
@@ -144,6 +145,7 @@ const pickAttrs = (src: InsumoAttrs): InsumoAttrs => ({
   attrCut: src.attrCut ?? null,
   attrColor: src.attrColor ?? null,
   attrSizeMm: src.attrSizeMm ?? null,
+  attrLengthMm: src.attrLengthMm ?? null,
   attrMaterial: src.attrMaterial ?? null,
   attrMesh: src.attrMesh ?? null,
   attrProfile: src.attrProfile ?? null,
@@ -191,6 +193,7 @@ const lineSchema = z.object({
   attrCut: z.string().nullish(),
   attrColor: z.string().nullish(),
   attrSizeMm: z.number().nullish(),
+  attrLengthMm: z.number().nullish(),
   attrMaterial: z.string().nullish(),
   attrMesh: z.string().nullish(),
   attrProfile: z.string().nullish(),
@@ -680,9 +683,12 @@ export function FichaTecnicaForm({
   function applyStone(index: number, stoneId: string) {
     const stone = stones.find((s) => s.id === stoneId);
     if (!stone) return;
-    const name = [stone.name, stone.cut, stone.color, stone.sizeMm != null ? `${stone.sizeMm}mm` : null]
-      .filter(Boolean)
-      .join(" · ");
+    const name = buildStoneName({
+      cut: stone.cut ?? "",
+      color: stone.color,
+      widthMm: stone.widthMm,
+      lengthMm: stone.lengthMm,
+    });
     setValue(`pedras.${index}.libraryId`, stone.id);
     setValue(`pedras.${index}.name`, name);
     setValue(`pedras.${index}.type`, "gema");
@@ -691,7 +697,8 @@ export function FichaTecnicaForm({
     setValue(`pedras.${index}.unit`, "un");
     setValue(`pedras.${index}.attrCut`, stone.cut?.trim() || null);
     setValue(`pedras.${index}.attrColor`, stone.color?.trim() || null);
-    setValue(`pedras.${index}.attrSizeMm`, stone.sizeMm ?? null);
+    setValue(`pedras.${index}.attrSizeMm`, stone.widthMm ?? null);
+    setValue(`pedras.${index}.attrLengthMm`, stone.lengthMm ?? null);
     if (num(getValues(`pedras.${index}.quantityUsed`)) <= 0) {
       setValue(`pedras.${index}.quantityUsed`, 1);
     }
@@ -1379,9 +1386,12 @@ export function FichaTecnicaForm({
                                 </SelectItem>
                                 {stones.map((s) => (
                                   <SelectItem key={s.id} value={s.id}>
-                                    {[s.name, s.cut, s.color, s.sizeMm != null ? `${s.sizeMm}mm` : null]
-                                      .filter(Boolean)
-                                      .join(" · ")}
+                                    {buildStoneName({
+                                      cut: s.cut ?? "",
+                                      color: s.color,
+                                      widthMm: s.widthMm,
+                                      lengthMm: s.lengthMm,
+                                    })}
                                   </SelectItem>
                                 ))}
                               </SelectContent>

@@ -30,6 +30,7 @@ import {
   type SequenceStone,
 } from "@/lib/jewelry-math";
 import type { InsumoAttrs } from "@/lib/material-requisition";
+import { buildStoneName, formatStoneDimension } from "@/lib/stone";
 
 function normalize(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
@@ -350,15 +351,19 @@ export function StoneSequencer({
 
   const sizeOptions = useMemo(() => {
     const counts = countByNormalized(
-      stones.map((s) =>
-        s.sizeMm != null && Number.isFinite(s.sizeMm) ? String(s.sizeMm) : null
-      )
+      stones.map((s) => {
+        const label = formatStoneDimension({
+          widthMm: s.widthMm,
+          lengthMm: s.lengthMm,
+        });
+        return label === "Sem medida" ? null : label;
+      })
     );
     return Array.from(counts.entries())
-      .sort((a, b) => Number(a[1].label) - Number(b[1].label))
+      .sort((a, b) => a[1].label.localeCompare(b[1].label, "pt-BR"))
       .map(([value, { label, count }]) => ({
         value,
-        label: `${label} mm`,
+        label,
         count,
       }));
   }, [stones]);
@@ -367,17 +372,12 @@ export function StoneSequencer({
     return stones.filter((s) => {
       if (cuts.size > 0 && !cuts.has(normalize(s.cut))) return false;
       if (colors.size > 0 && !colors.has(normalize(s.color))) return false;
-      if (
-        sizes.size > 0 &&
-        !sizes.has(
-          normalize(
-            s.sizeMm != null && Number.isFinite(s.sizeMm)
-              ? String(s.sizeMm)
-              : ""
-          )
-        )
-      ) {
-        return false;
+      if (sizes.size > 0) {
+        const dim = formatStoneDimension({
+          widthMm: s.widthMm,
+          lengthMm: s.lengthMm,
+        });
+        if (!sizes.has(normalize(dim))) return false;
       }
       return true;
     });
@@ -423,10 +423,12 @@ export function StoneSequencer({
       result.groups
         .filter((g) => g.count > 0)
         .map((g) => {
-          // Nome único por lapidação+cor+tamanho — evita colisão no Material.upsert.
-          const name = [g.name, g.cut, g.color, g.sizeMm != null ? `${g.sizeMm}mm` : null]
-            .filter(Boolean)
-            .join(" · ");
+          const name = buildStoneName({
+            cut: g.cut ?? "",
+            color: g.color,
+            widthMm: g.widthMm,
+            lengthMm: g.lengthMm,
+          });
           return {
             name,
             type: "gema" as const,
@@ -436,7 +438,8 @@ export function StoneSequencer({
             quantityUsed: g.count,
             attrCut: g.cut?.trim() || null,
             attrColor: g.color?.trim() || null,
-            attrSizeMm: g.sizeMm ?? null,
+            attrSizeMm: g.widthMm ?? null,
+            attrLengthMm: g.lengthMm ?? null,
           };
         })
     );
@@ -476,7 +479,7 @@ export function StoneSequencer({
                   onSelectedChange={setColors}
                 />
                 <DataTableFacetedFilter
-                  title="Tamanho"
+                  title="Dimensão"
                   options={sizeOptions}
                   selected={sizes}
                   onSelectedChange={setSizes}
@@ -501,11 +504,11 @@ export function StoneSequencer({
               </div>
               <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded-md border border-slate-200 bg-white p-2">
                 {filteredStones.map((s) => {
-                  const meta = [
-                    s.cut,
-                    s.color,
-                    s.sizeMm != null ? `${s.sizeMm}mm` : null,
-                  ]
+                  const dim = formatStoneDimension({
+                    widthMm: s.widthMm,
+                    lengthMm: s.lengthMm,
+                  });
+                  const meta = [s.cut, s.color, dim !== "Sem medida" ? dim : null]
                     .filter(Boolean)
                     .join(" · ");
                   return (

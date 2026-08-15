@@ -1,9 +1,4 @@
-// lib/material-requisition.ts
-// "Requisição de Materiais" — lista de COMPRA para o joalheiro encomendar no
-// fornecedor tudo que precisa para confeccionar as peças de um pedido.
-//
-// Varre a ficha técnica (composição) de cada joia, agrupa insumos idênticos e
-// soma quantidades/pesos. Ligas (ex.: 750) são decompostas nos metais base.
+import { formatStoneDimension, buildStoneName } from "@/lib/stone";
 
 /**
  * Metadados estruturados de um insumo, transportados da Ficha Técnica até a
@@ -13,6 +8,7 @@ export interface InsumoAttrs {
   attrCut?: string | null;
   attrColor?: string | null;
   attrSizeMm?: number | null;
+  attrLengthMm?: number | null;
   attrMaterial?: string | null;
   attrMesh?: string | null;
   attrProfile?: string | null;
@@ -30,6 +26,7 @@ export interface RequisitionMaterial {
   attrCut: string | null;
   attrColor: string | null;
   attrSizeMm: number | null;
+  attrLengthMm: number | null;
   attrMaterial: string | null;
   attrMesh: string | null;
   attrProfile: string | null;
@@ -56,6 +53,7 @@ export const REQUISITION_MATERIAL_SELECT = {
   attrCut: true,
   attrColor: true,
   attrSizeMm: true,
+  attrLengthMm: true,
   attrMaterial: true,
   attrMesh: true,
   attrProfile: true,
@@ -124,32 +122,16 @@ function sizeLabel(mm: number | null): string {
   return `${rounded.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}mm`;
 }
 
-/** Descrição de uma pedra: "Zircônia Redonda Branca 2.0mm". */
-function stoneBaseName(name: string): string {
-  const cleaned = cleanName(name);
-  // Nomes gerados pelo sequenciador usam " · " como separador.
-  return cleaned.split(" · ")[0]?.trim() || cleaned;
-}
-
 function stoneLabel(m: RequisitionMaterial): string {
-  const parts = [
-    stoneBaseName(m.name),
-    m.attrCut,
-    m.attrColor,
-    sizeLabel(m.attrSizeMm),
-  ]
-    .filter((p): p is string => Boolean(p && String(p).trim()))
-    .map((p) => capitalize(String(p).trim()));
-
-  // Remove tokens consecutivos duplicados (ex.: nome já contém a cor).
-  const deduped: string[] = [];
-  for (const part of parts) {
-    const prev = deduped[deduped.length - 1];
-    if (prev && prev.toLowerCase() === part.toLowerCase()) continue;
-    deduped.push(part);
+  if (m.attrCut || m.attrColor || m.attrSizeMm != null) {
+    return buildStoneName({
+      cut: m.attrCut ?? "",
+      color: m.attrColor ?? "",
+      widthMm: m.attrSizeMm,
+      lengthMm: m.attrLengthMm,
+    });
   }
-
-  return deduped.length > 0 ? deduped.join(" ") : cleanName(m.name);
+  return cleanName(m.name);
 }
 
 function chainLabel(m: RequisitionMaterial): string {
@@ -222,22 +204,12 @@ export function calculateMaterialsForOrder(
       if (type === "gema") {
         const color = (m.attrColor ?? "").trim();
         const cut = (m.attrCut ?? "").trim();
-        const base = stoneBaseName(m.name);
         const label = stoneLabel(m);
-        // Agrupa por modelo + lapidação + cor + tamanho.
-        const key = `${base.toLowerCase()}|${cut.toLowerCase()}|${color.toLowerCase()}|${
-          m.attrSizeMm ?? ""
-        }`;
-        if (process.env.NODE_ENV === "development") {
-          console.log("[requisition:stone]", {
-            name: m.name,
-            attrCut: cut || null,
-            attrColor: color || null,
-            attrSizeMm: m.attrSizeMm,
-            label,
-            qty: used,
-          });
-        }
+        const dim = formatStoneDimension({
+          widthMm: m.attrSizeMm,
+          lengthMm: m.attrLengthMm,
+        });
+        const key = `${cut.toLowerCase()}|${color.toLowerCase()}|${dim}`;
         const existing = stones.get(key);
         if (existing) existing.quantity += used;
         else stones.set(key, { key, label, quantity: used });

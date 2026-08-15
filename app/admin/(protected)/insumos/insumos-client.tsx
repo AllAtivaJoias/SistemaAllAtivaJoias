@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { Numbers } from "@/lib/decimal";
 import type { Chain, MetalAlloy, Stone } from "@prisma/client";
+import { buildStoneName, formatStoneDimension, stoneCutLabel } from "@/lib/stone";
 
 type StoneDTO = Numbers<Stone>;
 type ChainDTO = Numbers<Chain>;
@@ -258,19 +259,16 @@ function StonesPanel({
   const sizeOptions = useMemo(() => {
     const map = new Map<string, number>();
     for (const s of stones) {
-      if (s.sizeMm === null || s.sizeMm === undefined) continue;
-      const key = String(s.sizeMm);
+      const key = formatStoneDimension({
+        widthMm: s.widthMm,
+        lengthMm: s.lengthMm,
+      });
+      if (key === "Sem medida") continue;
       map.set(key, (map.get(key) ?? 0) + 1);
     }
     return [...map.entries()]
-      .map(([value, count]) => ({
-        value,
-        label: `${Number(value).toLocaleString("pt-BR", {
-          maximumFractionDigits: 2,
-        })} mm`,
-        count,
-      }))
-      .sort((a, b) => Number(a.value) - Number(b.value));
+      .map(([value, count]) => ({ value, label: value, count }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
   }, [stones]);
 
   const filtered = useMemo(() => {
@@ -279,15 +277,27 @@ function StonesPanel({
       if (cuts.size > 0 && !cuts.has(normalize(s.cut))) return false;
       if (colors.size > 0 && !colors.has(normalize(s.color))) return false;
       if (sizes.size > 0) {
-        if (s.sizeMm === null || s.sizeMm === undefined) return false;
-        if (!sizes.has(String(s.sizeMm))) return false;
+        const dim = formatStoneDimension({
+          widthMm: s.widthMm,
+          lengthMm: s.lengthMm,
+        });
+        if (!sizes.has(dim)) return false;
       }
       if (!q) return true;
-      // Busca livre: nome, lapidação, cor (e “código” embutido no nome).
       const haystack = normalize(
-        [s.name, s.cut, s.color, s.sizeMm != null ? String(s.sizeMm) : ""].join(
-          " "
-        )
+        [
+          s.name,
+          s.cut,
+          stoneCutLabel(s.cut),
+          s.color,
+          formatStoneDimension({ widthMm: s.widthMm, lengthMm: s.lengthMm }),
+          buildStoneName({
+            cut: s.cut,
+            color: s.color,
+            widthMm: s.widthMm,
+            lengthMm: s.lengthMm,
+          }),
+        ].join(" ")
       );
       return haystack.includes(q);
     });
@@ -378,7 +388,7 @@ function StonesPanel({
           onSelectedChange={setColors}
         />
         <DataTableFacetedFilter
-          title="Tamanho"
+          title="Dimensão"
           options={sizeOptions}
           selected={sizes}
           onSelectedChange={setSizes}
@@ -390,10 +400,10 @@ function StonesPanel({
           <TableRow>
             <TableHead>Nome</TableHead>
             <TableHead>Lapidação</TableHead>
+            <TableHead>Dimensão</TableHead>
             <TableHead>Cor</TableHead>
-            <TableHead className="text-right">Tam. (mm)</TableHead>
             <TableHead className="text-right">Peso (ct)</TableHead>
-            <TableHead className="text-right">Valor un.</TableHead>
+            <TableHead className="text-right">Preço</TableHead>
             <TableHead className="w-24 text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -408,14 +418,26 @@ function StonesPanel({
               }
             />
           )}
-          {pageItems.map((s) => (
+          {pageItems.map((s) => {
+            const displayName = buildStoneName({
+              cut: s.cut,
+              color: s.color,
+              widthMm: s.widthMm,
+              lengthMm: s.lengthMm,
+            });
+            const dim = formatStoneDimension({
+              widthMm: s.widthMm,
+              lengthMm: s.lengthMm,
+            });
+            return (
             <TableRow key={s.id}>
               <TableCell className="font-medium text-slate-900">
-                {s.name}
+                {displayName}
               </TableCell>
-              <TableCell className="capitalize text-slate-600">
-                {s.cut}
+              <TableCell className="text-slate-600">
+                {stoneCutLabel(s.cut)}
               </TableCell>
+              <TableCell className="text-slate-600">{dim}</TableCell>
               <TableCell>
                 <span className="inline-flex items-center gap-2 text-slate-600">
                   <span
@@ -424,9 +446,6 @@ function StonesPanel({
                   />
                   {s.color}
                 </span>
-              </TableCell>
-              <TableCell className="text-right text-slate-600">
-                {num(s.sizeMm)}
               </TableCell>
               <TableCell className="text-right text-slate-600">
                 {num(s.weightCt)}
@@ -439,13 +458,14 @@ function StonesPanel({
                   <EditButton onClick={() => onEdit(s)} />
                   <DeleteConfirmDialog
                     title="Excluir pedra"
-                    description={`Remover "${s.name}" da biblioteca de insumos?`}
+                    description={`Remover "${displayName}" da biblioteca de insumos?`}
                     onConfirm={() => deleteStone(s.id)}
                   />
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
 

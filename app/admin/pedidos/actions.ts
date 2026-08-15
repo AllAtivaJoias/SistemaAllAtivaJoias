@@ -129,6 +129,7 @@ export async function createOrder(
           attrCut: comp.material.attrCut,
           attrColor: comp.material.attrColor,
           attrSizeMm: comp.material.attrSizeMm,
+          attrLengthMm: comp.material.attrLengthMm,
           attrMaterial: comp.material.attrMaterial,
           attrMesh: comp.material.attrMesh,
           attrProfile: comp.material.attrProfile,
