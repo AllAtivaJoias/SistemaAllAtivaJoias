@@ -7,9 +7,11 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  provider = "postgresql"
+  // Em runtime a conexão vem do driver adapter (@prisma/adapter-pg) com IAM do
+  // Aurora — ver lib/prisma.ts. O CLI do Prisma (db push/studio) usa a DATABASE_URL,
+  // que é montada com um token IAM temporário pelo script scripts/db-push.mjs.
+  url      = env("DATABASE_URL")
 }
 
 model Category {
