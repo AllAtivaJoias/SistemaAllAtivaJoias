@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -406,6 +407,21 @@ export function FichaTecnicaForm({
 
   const values = watch();
   const selectedProduct = products.find((p) => p.id === values.productId);
+
+  // Deep-link: /admin/ficha-tecnica?productId=... pré-seleciona a peça (uma vez).
+  const searchParams = useSearchParams();
+  const didAutoSelect = useRef(false);
+  useEffect(() => {
+    if (didAutoSelect.current) return;
+    const pid = searchParams.get("productId")?.trim();
+    if (!pid) return;
+    if (getValues().productId) return;
+    if (!products.some((p) => p.id === pid)) return;
+    didAutoSelect.current = true;
+    handleSelectProduct(pid);
+    // handleSelectProduct e getValues são estáveis; products vem de props.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, products]);
 
   const categoryOptions = useMemo(() => {
     const counts = new Map<string, number>();

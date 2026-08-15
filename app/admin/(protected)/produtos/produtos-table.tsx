@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Pencil } from "lucide-react";
+import { Eye, Pencil } from "lucide-react";
 import type { Category } from "@prisma/client";
 
 import { formatPrice } from "@/lib/format";
@@ -24,6 +24,7 @@ import {
 } from "@/components/admin/data-table-pagination";
 import { DataTableToolbar } from "@/components/admin/data-table-toolbar";
 import { ProductFormSheet, type ProductFormModel } from "./product-form-sheet";
+import { ProductDetailsSheet } from "./product-details-sheet";
 
 export type ProductRow = ProductFormModel & { category: Category | null };
 
@@ -205,6 +206,19 @@ export function ProdutosTable({ products, categories }: ProdutosTableProps) {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1">
+                    <ProductDetailsSheet
+                      product={product}
+                      categories={categories}
+                      trigger={
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Ver especificações de ${product.title}`}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      }
+                    />
                     <ProductFormSheet
                       product={product}
                       categories={categories}
