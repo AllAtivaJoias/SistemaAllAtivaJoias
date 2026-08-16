@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
 import { getStoreSettings } from "@/lib/store-settings";
+import { getAppSettings } from "@/lib/app-settings-query";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ProductCard } from "@/components/ProductCard";
@@ -16,8 +17,9 @@ const FEATURED_LIMIT = 4;
 export default async function Home() {
   // Vitrine editorial: cada categoria mostra até 4 produtos em destaque.
   // Uma única consulta (categorias + destaques aninhados) evita N+1.
-  const [settings, categories] = await Promise.all([
+  const [settings, appSettings, categories] = await Promise.all([
     getStoreSettings(),
+    getAppSettings(),
     prisma.category.findMany({
       orderBy: { order: "asc" },
       select: {
@@ -52,7 +54,7 @@ export default async function Home() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <Header categories={headerCategories} />
+      <Header categories={headerCategories} storeName={appSettings.storeName} />
 
       <main className="flex-1">
         {/* Hero */}

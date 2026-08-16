@@ -24,7 +24,8 @@ import { formatOrderId } from "@/lib/order-period";
 import { formatPhone, formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { OrderAndRequisitionReceipt } from "@/components/admin/order-requisition-receipt";
+import { OrderPrintContainer } from "@/components/print/order-print-container";
+import type { PrintContext } from "@/lib/app-settings";
 
 // Guarda os IDs já impressos entre reloads da página, evitando reimprimir
 // todos os pendentes caso o kiosk seja reiniciado.
@@ -62,7 +63,7 @@ function formatWaitTime(createdAtISO: string, now: number): string {
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}min`;
 }
 
-export function PedidosBoard() {
+export function PedidosBoard({ printContext }: { printContext: PrintContext }) {
   // Trava de interação: o polling e a auto-impressão só rodam após o
   // atendente clicar no botão (gesto de usuário exigido pelo navegador).
   const [isAutoPrintEnabled, setIsAutoPrintEnabled] = useState(false);
@@ -319,11 +320,8 @@ export function PedidosBoard() {
     <>
       {Toast}
 
-      {/* Camada oculta usada apenas pelo @media print (recibo térmico 80mm). */}
       {receiptToPrint && (
-        <div className="work-order-receipt" aria-hidden="true">
-          <OrderAndRequisitionReceipt data={receiptToPrint} />
-        </div>
+        <OrderPrintContainer data={receiptToPrint} context={printContext} />
       )}
 
       <div className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-500">

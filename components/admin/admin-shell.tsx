@@ -17,6 +17,7 @@ import {
   Package,
   Palette,
   ShoppingCart,
+  Settings,
   Sparkles,
   Tags,
   X,
@@ -42,9 +43,16 @@ const links = [
   { href: "/admin/pedidos/historico", label: "Histórico", icon: History },
   { href: "/admin/aparencia", label: "Aparência", icon: Palette },
   { href: "/admin/prompts", label: "Biblioteca de Prompts", icon: Sparkles },
+  { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
 ];
 
-export function AdminShell({ children }: { children: React.ReactNode }) {
+export function AdminShell({
+  children,
+  storeName = "AllAtiva Joias",
+}: {
+  children: React.ReactNode;
+  storeName?: string;
+}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false); // desktop: minimizada
   const [mobileOpen, setMobileOpen] = useState(false); // mobile: gaveta
@@ -66,7 +74,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </button>
         <span className="flex items-center gap-2 font-serif text-lg font-semibold">
           <Gem className="h-5 w-5 text-brand-600" />
-          AllAtiva Joias
+          {storeName}
         </span>
       </header>
 
@@ -97,7 +105,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           >
             <Gem className="h-5 w-5 shrink-0 text-brand-300" />
             <span className="font-serif text-lg font-semibold">
-              AllAtiva Joias
+              {storeName}
             </span>
           </span>
 

@@ -39,6 +39,14 @@ export function formatPhone(value: string): string {
   return `(${ddd}) ${rest.slice(0, splitAt)}-${rest.slice(splitAt)}`;
 }
 
+/** Formata data em Brasília. Ex.: "12/07/2026" */
+export function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeZone: BRASILIA_TZ,
+  }).format(date);
+}
+
 /** Formata data e hora em Brasília. Ex.: "12/07/2026, 14:30" */
 export function formatDateTime(date: Date): string {
   return new Intl.DateTimeFormat("pt-BR", {

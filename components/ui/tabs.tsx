@@ -96,16 +96,23 @@ TabsTrigger.displayName = "TabsTrigger";
 
 const TabsContent = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & { value: string }
->(({ className, value, ...props }, ref) => {
+  React.HTMLAttributes<HTMLDivElement> & {
+    value: string;
+    /** Mantém o painel no DOM (necessário para campos de formulário em abas). */
+    forceMount?: boolean;
+  }
+>(({ className, value, forceMount, ...props }, ref) => {
   const { value: active } = useTabs();
-  if (active !== value) return null;
+  const isActive = active === value;
+  if (!isActive && !forceMount) return null;
   return (
     <div
       ref={ref}
       role="tabpanel"
+      hidden={!isActive}
       className={cn(
         "mt-4 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        !isActive && "hidden",
         className
       )}
       {...props}

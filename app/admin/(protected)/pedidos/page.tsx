@@ -1,8 +1,12 @@
+import { getAppSettings } from "@/lib/app-settings-query";
+import { toPrintContext } from "@/lib/app-settings";
 import { PedidosBoard } from "./pedidos-board";
 
 export const dynamic = "force-dynamic";
 
-export default function PedidosPage() {
+export default async function PedidosPage() {
+  const printContext = toPrintContext(await getAppSettings());
+
   return (
     <div className="space-y-6">
       <div>
@@ -15,7 +19,7 @@ export default function PedidosPage() {
         </p>
       </div>
 
-      <PedidosBoard />
+      <PedidosBoard printContext={printContext} />
     </div>
   );
 }

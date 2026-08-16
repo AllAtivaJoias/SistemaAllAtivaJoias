@@ -130,6 +130,8 @@ interface FichaTecnicaFormProps {
   wires: WireOption[];
   alloys: AlloyOption[];
   patterns: SupplyPatternOption[];
+  pricingDefaultMode: PricingMode;
+  pricingDefaultValue: number;
 }
 
 function normalize(value: string): string {
@@ -364,6 +366,18 @@ function AddLineButton({ onClick, label }: { onClick: () => void; label: string 
   );
 }
 
+function asPricingMode(value: string | null | undefined, fallback: PricingMode): PricingMode {
+  if (
+    value === "markupPercent" ||
+    value === "marginPercent" ||
+    value === "fixedProfit" ||
+    value === "finalPrice"
+  ) {
+    return value;
+  }
+  return fallback;
+}
+
 export function FichaTecnicaForm({
   products,
   categories,
@@ -372,6 +386,8 @@ export function FichaTecnicaForm({
   wires,
   alloys,
   patterns,
+  pricingDefaultMode,
+  pricingDefaultValue,
 }: FichaTecnicaFormProps) {
   const [isPending, startTransition] = useTransition();
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -393,8 +409,8 @@ export function FichaTecnicaForm({
         fios: [],
         ordens: [],
         additionalCosts: [],
-        mode: "markupPercent",
-        strategyValue: 100,
+        mode: pricingDefaultMode,
+        strategyValue: pricingDefaultValue,
       },
     });
 
@@ -581,8 +597,8 @@ export function FichaTecnicaForm({
         fios: [],
         ordens: [],
         additionalCosts: [],
-        mode: "markupPercent",
-        strategyValue: 100,
+        mode: pricingDefaultMode,
+        strategyValue: pricingDefaultValue,
       });
       return;
     }
@@ -691,8 +707,8 @@ export function FichaTecnicaForm({
           value: Number(cost.value) || 0,
           isPackaging: Boolean(cost.isPackaging),
         })),
-      mode: (product.pricingStrategy as PricingMode) ?? "markupPercent",
-      strategyValue: product.pricingValue ?? 100,
+      mode: asPricingMode(product.pricingStrategy, pricingDefaultMode),
+      strategyValue: product.pricingValue ?? pricingDefaultValue,
     });
   }
 

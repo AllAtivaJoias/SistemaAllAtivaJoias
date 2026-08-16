@@ -7,6 +7,7 @@ import { formatOrderId, formatOrderSummary } from "@/lib/order-period";
 import { toWorkOrderData } from "@/lib/receipt";
 import { useReceiptPrint } from "@/hooks/use-receipt-print";
 import type { RequisitionCompositionItem } from "@/lib/material-requisition";
+import type { PrintContext } from "@/lib/app-settings";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -52,11 +53,12 @@ export type HistoricoOrderRow = {
 
 interface HistoricoTableProps {
   orders: HistoricoOrderRow[];
+  printContext: PrintContext;
 }
 
-export function HistoricoTable({ orders }: HistoricoTableProps) {
+export function HistoricoTable({ orders, printContext }: HistoricoTableProps) {
   const { printReceipt, printMessage, clearPrintMessage, canPrint, ReceiptLayer } =
-    useReceiptPrint();
+    useReceiptPrint(printContext);
 
   return (
     <>

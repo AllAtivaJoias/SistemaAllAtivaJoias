@@ -320,8 +320,8 @@ function trimNumber(value: number, maxDigits = 2): string {
     : rounded.toLocaleString("pt-BR", { maximumFractionDigits: maxDigits });
 }
 
-export function formatGrams(value: number): string {
-  return `${trimNumber(value, 2)}g`;
+export function formatGrams(value: number, digits = 2): string {
+  return `${trimNumber(value, digits)}g`;
 }
 
 export function formatCentimeters(value: number): string {

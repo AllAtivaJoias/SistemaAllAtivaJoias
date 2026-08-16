@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { getAppSettings } from "@/lib/app-settings-query";
 
 export default async function AdminProtectedLayout({
   children,
@@ -14,5 +15,7 @@ export default async function AdminProtectedLayout({
     redirect("/admin/login");
   }
 
-  return <AdminShell>{children}</AdminShell>;
+  const settings = await getAppSettings();
+
+  return <AdminShell storeName={settings.storeName}>{children}</AdminShell>;
 }

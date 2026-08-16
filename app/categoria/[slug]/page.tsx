@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
 import { getStoreSettings } from "@/lib/store-settings";
+import { getAppSettings } from "@/lib/app-settings-query";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ProductCard } from "@/components/ProductCard";
@@ -66,13 +67,14 @@ export default async function CategoryPage({
     isDeleted: false,
   } as const;
 
-  const [total, categories, settings, products] = await Promise.all([
+  const [total, categories, settings, appSettings, products] = await Promise.all([
     prisma.product.count({ where }),
     prisma.category.findMany({
       orderBy: { order: "asc" },
       select: { slug: true, name: true },
     }),
     getStoreSettings(),
+    getAppSettings(),
     prisma.product.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -96,7 +98,7 @@ export default async function CategoryPage({
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <Header categories={headerCategories} />
+      <Header categories={headerCategories} storeName={appSettings.storeName} />
 
       <main className="flex-1">
         <section className="border-b border-slate-200 bg-white">

@@ -1,3 +1,5 @@
+import { getAppSettings } from "@/lib/app-settings-query";
+import { toPrintContext } from "@/lib/app-settings";
 import { prisma } from "@/lib/prisma";
 import {
   buildOrderDateRange,
@@ -30,6 +32,7 @@ export default async function HistoricoPedidosPage({
 
   let serializedOrders: Parameters<typeof HistoricoTable>[0]["orders"] = [];
   let loadError: string | null = null;
+  const printContext = toPrintContext(await getAppSettings());
 
   try {
     const orders = await prisma.order.findMany({
@@ -105,7 +108,7 @@ export default async function HistoricoPedidosPage({
         </p>
       )}
 
-      <HistoricoTable orders={serializedOrders} />
+      <HistoricoTable orders={serializedOrders} printContext={printContext} />
     </div>
   );
 }

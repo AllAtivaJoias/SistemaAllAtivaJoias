@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { HelpButton } from "@/components/admin/help-button";
 import { ADMIN_PRODUCTS_MAX, ADMIN_INSUMOS_MAX } from "@/lib/list-limits";
 import { asClient } from "@/lib/decimal";
+import { getAppSettings } from "@/lib/app-settings-query";
+import { PRICING_DEFAULT_MODES } from "@/lib/app-settings";
+import type { PricingMode } from "@/lib/pricing";
 import { FichaTecnicaForm } from "./ficha-tecnica-form";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +25,7 @@ export default async function FichaTecnicaPage() {
     alloyMetalName: true,
   } as const;
 
-  const [products, categories, stones, chains, wires, alloys, patterns] =
+  const [products, categories, stones, chains, wires, alloys, patterns, settings] =
     await Promise.all([
       prisma.product.findMany({
         where: { isDeleted: false },
@@ -206,7 +209,14 @@ export default async function FichaTecnicaPage() {
           },
         },
       }),
+      getAppSettings(),
     ]);
+
+  const pricingDefaultMode = (
+    PRICING_DEFAULT_MODES as readonly string[]
+  ).includes(settings.pricingDefaultMode)
+    ? (settings.pricingDefaultMode as PricingMode)
+    : "markupPercent";
 
   return (
     <div className="space-y-6">
@@ -231,6 +241,8 @@ export default async function FichaTecnicaPage() {
         wires={asClient(wires)}
         alloys={asClient(alloys)}
         patterns={asClient(patterns)}
+        pricingDefaultMode={pricingDefaultMode}
+        pricingDefaultValue={settings.pricingDefaultValue}
       />
     </div>
   );

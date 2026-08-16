@@ -30,6 +30,11 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum PrintFormat {
+  THERMAL_80MM
+  A4
+}
+
 model User {
   id           String     @id @default(cuid())
   email        String     @unique
@@ -464,4 +469,81 @@ model AiPrompt {
   @@index([authorId])
   @@index([isActive, createdAt])
   @@index([isActive, isFavorite, createdAt])
+}
+
+/// Configuração operacional do ERP (singleton). Independente de StoreSettings
+/// (textos da vitrine). Single-tenant: um único registro `singleton`.
+model AppSettings {
+  id String @id @default("singleton")
+
+  storeName      String @default("AllAtiva Joias")
+  legalName      String @default("")
+  tradeName      String @default("")
+  documentNumber String @default("")
+
+  email     String @default("")
+  phone     String @default("")
+  whatsapp  String @default("")
+  website   String @default("")
+  instagram String @default("")
+
+  address      String @default("")
+  addressNumber String @default("")
+  complement   String @default("")
+  neighborhood String @default("")
+  city         String @default("")
+  state        String @default("")
+  postalCode   String @default("")
+  country      String @default("BR")
+  businessHours String @default("")
+
+  logoUrl      String @default("")
+  logoDarkUrl  String @default("")
+  faviconUrl   String @default("")
+  primaryColor String @default("#034742")
+
+  defaultPrintFormat PrintFormat @default(THERMAL_80MM)
+
+  /// markupPercent | marginPercent | fixedProfit | finalPrice — default da Ficha.
+  pricingDefaultMode  String  @default("markupPercent")
+  pricingDefaultValue Decimal @default(100) @db.Decimal(14, 4)
+  weightDecimalPlaces Int     @default(2)
+
+  productionDefaultDueDays          Int     @default(15)
+  productionShowProcessChecklist    Boolean @default(true)
+  productionTrackLoss               Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Perfil de documento operacional. O formato (80mm/A4) escolhe o perfil
+/// correspondente; as flags controlam o conteúdo (ex.: impressão cega).
+model PrintProfile {
+  id     String      @id @default(cuid())
+  code   String      @unique
+  name   String
+  /// RECEIPT | PRODUCTION_ORDER | MATERIAL_REQUISITION
+  kind   String
+  format PrintFormat
+  isSystem Boolean   @default(true)
+  isActive Boolean   @default(true)
+
+  showPrices          Boolean @default(true)
+  showCustomerData    Boolean @default(true)
+  showMaterials       Boolean @default(true)
+  showStoreHeader     Boolean @default(true)
+  showOrderNumber     Boolean @default(true)
+  showDate            Boolean @default(true)
+  showSeller          Boolean @default(true)
+  showNotes           Boolean @default(true)
+  showTotals          Boolean @default(true)
+  showPayment         Boolean @default(true)
+  showProductionData  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([format, isActive])
+  @@index([kind])
 }

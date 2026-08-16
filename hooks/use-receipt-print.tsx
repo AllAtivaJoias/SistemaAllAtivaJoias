@@ -2,11 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { OrderAndRequisitionReceipt } from "@/components/admin/order-requisition-receipt";
+import { OrderPrintContainer } from "@/components/print/order-print-container";
 import { canPrintOnCashierPc, handlePrint } from "@/lib/print";
+import {
+  FALLBACK_APP_SETTINGS,
+  toPrintContext,
+  type PrintContext,
+} from "@/lib/app-settings";
 import type { WorkOrderData } from "@/lib/receipt";
 
-export function useReceiptPrint() {
+export function useReceiptPrint(printContext?: PrintContext) {
+  const context = printContext ?? toPrintContext(FALLBACK_APP_SETTINGS);
   const [receiptToPrint, setReceiptToPrint] = useState<WorkOrderData | null>(
     null
   );
@@ -46,9 +52,7 @@ export function useReceiptPrint() {
 
   const ReceiptLayer =
     receiptToPrint !== null ? (
-      <div className="work-order-receipt" aria-hidden="true">
-        <OrderAndRequisitionReceipt data={receiptToPrint} />
-      </div>
+      <OrderPrintContainer data={receiptToPrint} context={context} />
     ) : null;
 
   return {

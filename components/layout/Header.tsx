@@ -23,9 +23,13 @@ export interface HeaderCategory {
 
 interface HeaderProps {
   categories: HeaderCategory[];
+  storeName?: string;
 }
 
-export function Header({ categories }: HeaderProps) {
+export function Header({
+  categories,
+  storeName = "AllAtiva Joias",
+}: HeaderProps) {
   const [open, setOpen] = useState(false);
   const activeId = useScrollSpy(categories.map((category) => category.id));
 
@@ -63,7 +67,7 @@ export function Header({ categories }: HeaderProps) {
             <SheetHeader>
               <SheetTitle className="flex items-center gap-2 font-serif text-2xl font-semibold text-brand-800">
                 <Gem className="h-5 w-5 text-brand-600" />
-                AllAtiva Joias
+                {storeName}
               </SheetTitle>
               <SheetDescription className="text-slate-500">
                 Navegue pelas categorias do catálogo.
@@ -106,7 +110,7 @@ export function Header({ categories }: HeaderProps) {
         <div className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-2">
           <Gem className="h-5 w-5 text-brand-600" />
           <span className="font-serif text-xl font-semibold tracking-wide text-slate-900 sm:text-2xl">
-            AllAtiva Joias
+            {storeName}
           </span>
         </div>
       </div>
