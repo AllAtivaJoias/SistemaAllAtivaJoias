@@ -3,28 +3,34 @@ import {
   STORE_DEFAULTS,
   STORE_TEXT_LIMITS,
 } from "@/lib/store-settings";
-import { AppearanceForm } from "./appearance-form";
+import { getAppSettings } from "@/lib/app-settings-query";
+import { AppearanceStudio } from "./appearance-studio";
 
 export const dynamic = "force-dynamic";
 
 export default async function AparenciaPage() {
-  const settings = await getStoreSettingsRaw();
+  const [vitrine, settings] = await Promise.all([
+    getStoreSettingsRaw(),
+    getAppSettings(),
+  ]);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-3xl font-semibold text-stone-800">
-          Aparência da Loja
+        <h1 className="font-serif text-3xl font-semibold text-foreground">
+          Aparência
         </h1>
-        <p className="mt-1 text-stone-500">
-          Edite os textos exibidos na vitrine pública.
+        <p className="mt-1 text-muted-foreground">
+          Identidade, tema white-label e textos da vitrine. Alterações só entram
+          no ar ao salvar.
         </p>
       </div>
 
-      <AppearanceForm
-        defaultValues={settings}
-        limits={STORE_TEXT_LIMITS}
-        placeholders={STORE_DEFAULTS}
+      <AppearanceStudio
+        settings={settings}
+        vitrine={vitrine}
+        vitrineLimits={STORE_TEXT_LIMITS}
+        vitrinePlaceholders={STORE_DEFAULTS}
       />
     </div>
   );

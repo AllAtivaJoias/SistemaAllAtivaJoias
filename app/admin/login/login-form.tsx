@@ -45,7 +45,7 @@ export function LoginForm() {
       </div>
 
       {isDev && (
-        <p className="rounded-md bg-slate-100 px-3 py-2 text-xs text-slate-500">
+        <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
           Ambiente de desenvolvimento. Use o usuário administrador do banco
           (bootstrap via ADMIN_EMAIL / ADMIN_PASSWORD apenas na primeira
           execução).
@@ -53,7 +53,7 @@ export function LoginForm() {
       )}
 
       {state?.error && (
-        <div className="flex items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{state.error}</span>
         </div>
@@ -62,7 +62,7 @@ export function LoginForm() {
       <Button
         type="submit"
         disabled={isPending}
-        className="w-full bg-brand-600 text-white hover:bg-brand-700"
+        className="w-full"
       >
         {isPending ? (
           <>

@@ -53,29 +53,33 @@ export default async function Home() {
   }));
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
-      <Header categories={headerCategories} storeName={appSettings.storeName} />
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <Header
+        categories={headerCategories}
+        storeName={appSettings.storeName}
+        logoUrl={appSettings.logoUrl || undefined}
+      />
 
       <main className="flex-1">
-        {/* Hero */}
-        <section className="border-b border-slate-200 bg-white">
+        <section className="border-b border-border bg-card">
           <div className="container flex flex-col items-center gap-4 py-16 text-center">
-            <span className="rounded-sm bg-brand-100 px-4 py-1 text-sm font-medium tracking-wide text-brand-700">
-              Joalheria de Alto Padrão
-            </span>
-            <h1 className="font-serif text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
+            {appSettings.brandTagline.trim() ? (
+              <span className="rounded-sm bg-accent px-4 py-1 text-sm font-medium tracking-wide text-accent-foreground">
+                {appSettings.brandTagline}
+              </span>
+            ) : null}
+            <h1 className="font-serif text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
               {settings.heroTitle}
             </h1>
-            <p className="max-w-xl text-base text-slate-500">
+            <p className="max-w-xl text-base text-muted-foreground">
               {settings.heroSubtitle}
             </p>
           </div>
         </section>
 
-        {/* Seções por categoria (apenas destaques) */}
         <div className="container py-12">
           {visibleCategories.length === 0 ? (
-            <p className="py-20 text-center text-slate-500">
+            <p className="py-20 text-center text-muted-foreground">
               O catálogo está sendo atualizado. Volte em breve!
             </p>
           ) : (
@@ -86,13 +90,13 @@ export default async function Home() {
                 className="scroll-mt-20 py-10"
               >
                 <div className="mb-6 flex items-center gap-4">
-                  <h2 className="font-serif text-3xl font-semibold text-slate-900">
+                  <h2 className="font-serif text-3xl font-semibold text-foreground">
                     {category.name}
                   </h2>
-                  <span className="h-px flex-1 bg-slate-200" />
+                  <span className="h-px flex-1 bg-border" />
                   <Link
                     href={`/categoria/${category.slug}`}
-                    className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-brand-700 transition-colors hover:text-brand-800"
+                    className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-link transition-colors hover:text-link-hover"
                   >
                     Ver todas
                     <ArrowRight className="h-4 w-4" />

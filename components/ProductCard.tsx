@@ -40,7 +40,7 @@ export function ProductCard({
       {/* 1. Foto */}
       <div
         className={cn(
-          "relative w-full overflow-hidden bg-slate-50",
+          "relative w-full overflow-hidden bg-muted",
           compact ? "aspect-square" : "aspect-[4/5]"
         )}
       >
@@ -67,7 +67,7 @@ export function ProductCard({
         {product.productCode ? (
           <span
             className={cn(
-              "font-mono leading-none text-slate-400",
+              "font-mono leading-none text-muted-foreground",
               compact ? "text-[9px]" : "text-[10px] sm:text-xs"
             )}
           >
@@ -77,7 +77,7 @@ export function ProductCard({
 
         <h3
           className={cn(
-            "font-semibold leading-snug text-slate-900",
+            "font-semibold leading-snug text-foreground",
             compact
               ? "line-clamp-2 text-xs"
               : "line-clamp-2 text-sm sm:text-base"
@@ -90,7 +90,7 @@ export function ProductCard({
           <div className="min-w-0">
             <p
               className={cn(
-                "text-xs leading-relaxed text-slate-500",
+                "text-xs leading-relaxed text-muted-foreground",
                 !isExpanded && "line-clamp-2"
               )}
             >
@@ -104,21 +104,21 @@ export function ProductCard({
                   e.preventDefault();
                   setIsExpanded((v) => !v);
                 }}
-                className="mt-0.5 text-xs font-medium text-brand-600 underline-offset-2 hover:underline"
+                className="mt-0.5 text-xs font-medium text-link underline-offset-2 hover:text-link-hover hover:underline"
               >
                 {isExpanded ? "Ler menos" : "Ler mais"}
               </button>
             ) : null}
           </div>
         ) : product.categoryName ? (
-          <p className="line-clamp-1 text-[10px] text-slate-400 sm:text-xs">
+          <p className="line-clamp-1 text-[10px] text-muted-foreground sm:text-xs">
             {product.categoryName}
           </p>
         ) : null}
 
         <p
           className={cn(
-            "mt-auto font-bold text-brand-600",
+            "mt-auto font-bold text-primary",
             compact ? "pt-0.5 text-xs sm:text-sm" : "pt-1 text-sm sm:text-base"
           )}
         >
@@ -129,7 +129,7 @@ export function ProductCard({
   );
 
   const shellClass = cn(
-    "group flex h-full flex-col overflow-hidden border border-slate-200/60 bg-white text-left transition-shadow duration-300 hover:shadow-sm",
+    "group flex h-full flex-col overflow-hidden border border-border/60 bg-card text-left text-card-foreground transition-shadow duration-300 hover:shadow-sm",
     compact ? "rounded-lg" : "rounded-xl",
     onClick && "active:scale-[0.98]",
     className

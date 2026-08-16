@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+import type { ThemeConfig } from "@/lib/theme/tokens";
+import { DEFAULT_THEME } from "@/lib/theme/tokens";
+
 export const APP_SETTINGS_ID = "singleton";
 export const APP_SETTINGS_CACHE_TAG = "app-settings";
 
@@ -39,6 +42,7 @@ export const APP_SETTINGS_LIMITS = {
   businessHours: 120,
   logoUrl: 500,
   primaryColor: 16,
+  brandTagline: 280,
 } as const;
 
 export type PrintFlags = {
@@ -85,7 +89,12 @@ export type CompanyIdentity = {
   logoUrl: string;
   logoDarkUrl: string;
   faviconUrl: string;
+  ogImageUrl: string;
   primaryColor: string;
+  brandTagline: string;
+  facebookUrl: string;
+  youtubeUrl: string;
+  tiktokUrl: string;
 };
 
 export type AppSettingsView = CompanyIdentity & {
@@ -98,6 +107,7 @@ export type AppSettingsView = CompanyIdentity & {
   productionTrackLoss: boolean;
   thermalProfile: PrintProfileView;
   a4Profile: PrintProfileView;
+  theme: ThemeConfig;
 };
 
 export type PrintContext = {
@@ -216,7 +226,12 @@ const FALLBACK_COMPANY: CompanyIdentity = {
   logoUrl: "",
   logoDarkUrl: "",
   faviconUrl: "",
+  ogImageUrl: "",
   primaryColor: "#034742",
+  brandTagline: "",
+  facebookUrl: "",
+  youtubeUrl: "",
+  tiktokUrl: "",
 };
 
 const FALLBACK_THERMAL: PrintProfileView = {
@@ -268,6 +283,7 @@ export const FALLBACK_APP_SETTINGS: AppSettingsView = {
   productionTrackLoss: true,
   thermalProfile: FALLBACK_THERMAL,
   a4Profile: FALLBACK_A4,
+  theme: DEFAULT_THEME,
 };
 
 export function toPrintContext(
@@ -429,6 +445,23 @@ export function websiteHref(website: string): string | null {
   if (!value) return null;
   if (/^https?:\/\//i.test(value)) return value;
   return `https://${value}`;
+}
+
+/** Href http(s) seguro para redes sociais e site. Rejeita javascript:/data:. */
+export function safeHttpHref(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/javascript:|data:|vbscript:/i.test(trimmed)) return null;
+  const href = websiteHref(trimmed);
+  if (!href) return null;
+  try {
+    const url = new URL(href);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    if (/javascript:|data:|vbscript:/i.test(url.href)) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
 }
 
 export const DEFAULT_PRODUCTION_STEPS = [

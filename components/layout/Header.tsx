@@ -24,11 +24,13 @@ export interface HeaderCategory {
 interface HeaderProps {
   categories: HeaderCategory[];
   storeName?: string;
+  logoUrl?: string;
 }
 
 export function Header({
   categories,
   storeName = "AllAtiva Joias",
+  logoUrl,
 }: HeaderProps) {
   const [open, setOpen] = useState(false);
   const activeId = useScrollSpy(categories.map((category) => category.id));
@@ -48,7 +50,7 @@ export function Header({
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/80">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 text-card-foreground shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container relative flex h-16 items-center">
         {/* Lado esquerdo: Hamburger Menu */}
         <Sheet open={open} onOpenChange={setOpen}>
@@ -56,20 +58,25 @@ export function Header({
             <Button
               variant="ghost"
               size="icon"
-              className="text-slate-800 hover:bg-brand-50 hover:text-brand-700"
+              className="text-foreground hover:bg-accent hover:text-accent-foreground"
               aria-label="Abrir menu de categorias"
             >
               <Menu className="h-6 w-6" />
             </Button>
           </SheetTrigger>
 
-          <SheetContent side="left" className="w-72 bg-slate-50">
+          <SheetContent side="left" className="w-72 bg-background">
             <SheetHeader>
-              <SheetTitle className="flex items-center gap-2 font-serif text-2xl font-semibold text-brand-800">
-                <Gem className="h-5 w-5 text-brand-600" />
+              <SheetTitle className="flex items-center gap-2 font-serif text-2xl font-semibold text-foreground">
+                {logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoUrl} alt="" className="h-6 w-auto object-contain" />
+                ) : (
+                  <Gem className="h-5 w-5 text-primary" />
+                )}
                 {storeName}
               </SheetTitle>
-              <SheetDescription className="text-slate-500">
+              <SheetDescription className="text-muted-foreground">
                 Navegue pelas categorias do catálogo.
               </SheetDescription>
             </SheetHeader>
@@ -87,14 +94,14 @@ export function Header({
                     className={cn(
                       "flex items-center gap-3 rounded-md px-4 py-3 text-left text-base font-medium transition-colors",
                       isActive
-                        ? "bg-brand-600 text-white shadow-sm"
-                        : "text-slate-700 hover:bg-brand-100 hover:text-brand-800"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
                     )}
                   >
                     <span
                       className={cn(
                         "h-1.5 w-1.5 rounded-full transition-colors",
-                        isActive ? "bg-white" : "bg-brand-300"
+                        isActive ? "bg-primary-foreground" : "bg-muted-foreground"
                       )}
                     />
                     {category.label}
@@ -108,8 +115,13 @@ export function Header({
 
         {/* Centro: Nome da joalheria */}
         <div className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-2">
-          <Gem className="h-5 w-5 text-brand-600" />
-          <span className="font-serif text-xl font-semibold tracking-wide text-slate-900 sm:text-2xl">
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="" className="h-7 w-auto object-contain" />
+          ) : (
+            <Gem className="h-5 w-5 text-primary" />
+          )}
+          <span className="font-serif text-xl font-semibold tracking-wide text-foreground sm:text-2xl">
             {storeName}
           </span>
         </div>

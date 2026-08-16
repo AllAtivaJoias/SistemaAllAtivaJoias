@@ -3,6 +3,7 @@ import { put } from "@vercel/blob";
 
 import { requireAdmin, AuthError } from "@/lib/auth-guard";
 import { logger } from "@/lib/logger";
+import { imageExtensionMatchesMime, sniffImageMime } from "@/lib/image-sniff";
 
 const ALLOWED_CONTENT_TYPES = new Set([
   "image/jpeg",
@@ -42,7 +43,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
+  if (file.type && !ALLOWED_CONTENT_TYPES.has(file.type)) {
     return NextResponse.json(
       { error: "Formato inválido. Use JPG, PNG, WEBP ou GIF." },
       { status: 400 }
@@ -52,6 +53,27 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (file.size > MAX_SIZE_IN_BYTES) {
     return NextResponse.json(
       { error: "A imagem deve ter no máximo 4 MB." },
+      { status: 400 }
+    );
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const sniffed = sniffImageMime(bytes);
+  if (!sniffed || !ALLOWED_CONTENT_TYPES.has(sniffed)) {
+    return NextResponse.json(
+      { error: "O conteúdo do arquivo não é uma imagem permitida." },
+      { status: 400 }
+    );
+  }
+  if (file.type && file.type !== sniffed) {
+    return NextResponse.json(
+      { error: "O tipo declarado não corresponde ao conteúdo do arquivo." },
+      { status: 400 }
+    );
+  }
+  if (!imageExtensionMatchesMime(file.name, sniffed)) {
+    return NextResponse.json(
+      { error: "A extensão do arquivo não corresponde ao conteúdo." },
       { status: 400 }
     );
   }

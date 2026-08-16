@@ -20,7 +20,7 @@ interface TopProductsChartProps {
 export function TopProductsChart({ data }: TopProductsChartProps) {
   if (data.length === 0) {
     return (
-      <p className="flex h-[280px] items-center justify-center text-sm text-stone-400">
+      <p className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
         Sem vendas concluídas neste mês.
       </p>
     );
@@ -40,10 +40,10 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
           data={chartData}
           margin={{ top: 8, right: 8, left: -12, bottom: 48 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
           <XAxis
             dataKey="name"
-            tick={{ fontSize: 11, fill: "#64748b" }}
+            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
             interval={0}
             angle={-28}
             textAnchor="end"
@@ -52,15 +52,17 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
           />
           <YAxis
             allowDecimals={false}
-            tick={{ fontSize: 11, fill: "#64748b" }}
+            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
             axisLine={false}
             tickLine={false}
           />
           <Tooltip
-            cursor={{ fill: "rgba(3, 71, 66, 0.06)" }}
+            cursor={{ fill: "hsl(var(--primary) / 0.08)" }}
             contentStyle={{
               borderRadius: 4,
-              border: "1px solid #e2e8f0",
+              border: "1px solid hsl(var(--border))",
+              background: "hsl(var(--card))",
+              color: "hsl(var(--card-foreground))",
               fontSize: 12,
             }}
             formatter={(value) => [value ?? 0, "Qtd. vendida"]}
@@ -71,7 +73,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
           />
           <Bar
             dataKey="quantidade"
-            fill="#034742"
+            fill="hsl(var(--chart-1))"
             radius={[3, 3, 0, 0]}
             maxBarSize={48}
           />
@@ -90,7 +92,7 @@ export function WeeklyEvolutionChart({ data }: WeeklyEvolutionChartProps) {
 
   if (!hasSales) {
     return (
-      <p className="flex h-[180px] items-center justify-center text-sm text-stone-400">
+      <p className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
         Sem faturamento nos últimos 7 dias.
       </p>
     );
@@ -100,15 +102,15 @@ export function WeeklyEvolutionChart({ data }: WeeklyEvolutionChartProps) {
     <div className="h-[180px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
           <XAxis
             dataKey="label"
-            tick={{ fontSize: 11, fill: "#64748b" }}
+            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
-            tick={{ fontSize: 11, fill: "#64748b" }}
+            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
             axisLine={false}
             tickLine={false}
             tickFormatter={(value) =>
@@ -116,10 +118,12 @@ export function WeeklyEvolutionChart({ data }: WeeklyEvolutionChartProps) {
             }
           />
           <Tooltip
-            cursor={{ fill: "rgba(3, 71, 66, 0.06)" }}
+            cursor={{ fill: "hsl(var(--primary) / 0.08)" }}
             contentStyle={{
               borderRadius: 4,
-              border: "1px solid #e2e8f0",
+              border: "1px solid hsl(var(--border))",
+              background: "hsl(var(--card))",
+              color: "hsl(var(--card-foreground))",
               fontSize: 12,
             }}
             formatter={(value) => [
@@ -129,7 +133,7 @@ export function WeeklyEvolutionChart({ data }: WeeklyEvolutionChartProps) {
           />
           <Bar
             dataKey="revenue"
-            fill="#1f6f68"
+            fill="hsl(var(--chart-2))"
             radius={[3, 3, 0, 0]}
             maxBarSize={36}
           />
@@ -146,7 +150,7 @@ interface CategorySalesListProps {
 export function CategorySalesList({ data }: CategorySalesListProps) {
   if (data.length === 0) {
     return (
-      <p className="py-6 text-center text-sm text-stone-400">
+      <p className="py-6 text-center text-sm text-muted-foreground">
         Sem vendas por categoria no período.
       </p>
     );
@@ -164,13 +168,13 @@ export function CategorySalesList({ data }: CategorySalesListProps) {
               <span className="truncate font-medium text-stone-700">
                 {item.categoryName}
               </span>
-              <span className="shrink-0 font-semibold text-brand-700">
+              <span className="shrink-0 font-semibold text-primary">
                 {formatPrice(item.revenue)}
               </span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-stone-100">
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-brand-500"
+                className="h-full rounded-full bg-primary"
                 style={{ width: `${width}%` }}
               />
             </div>

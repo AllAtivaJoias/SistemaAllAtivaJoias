@@ -91,7 +91,7 @@ export function AppearanceForm({
       )}
 
       {showSuccess && (
-        <p className="inline-flex items-center gap-1.5 text-sm text-brand-700">
+        <p className="inline-flex items-center gap-1.5 text-sm text-success">
           <CheckCircle2 className="h-4 w-4" />
           Alterações salvas.
         </p>
@@ -101,7 +101,7 @@ export function AppearanceForm({
         <Button
           type="submit"
           disabled={isPending}
-          className="bg-brand-600 text-white hover:bg-brand-700"
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
         >
           {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
           Salvar alterações

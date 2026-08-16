@@ -25,19 +25,22 @@ interface CategoryPageProps {
 export async function generateMetadata({
   params,
 }: CategoryPageProps): Promise<Metadata> {
-  const { slug } = await params;
+  const [{ slug }, appSettings] = await Promise.all([params, getAppSettings()]);
   const category = await prisma.category.findUnique({
     where: { slug },
     select: { name: true },
   });
+  const brand = appSettings.storeName.trim() || "AllAtiva Joias";
 
   if (!category) {
-    return { title: "Categoria não encontrada | AllAtiva Joias" };
+    return { title: `Categoria não encontrada | ${brand}` };
   }
 
   return {
-    title: `${category.name} | AllAtiva Joias`,
-    description: `Explore as peças da categoria ${category.name} na AllAtiva Joias — joalheria de alto padrão.`,
+    title: `${category.name} | ${brand}`,
+    description:
+      appSettings.brandTagline.trim() ||
+      `Explore as peças da categoria ${category.name} em ${brand}.`,
   };
 }
 
@@ -97,23 +100,27 @@ export default async function CategoryPage({
   }));
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
-      <Header categories={headerCategories} storeName={appSettings.storeName} />
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <Header
+        categories={headerCategories}
+        storeName={appSettings.storeName}
+        logoUrl={appSettings.logoUrl || undefined}
+      />
 
       <main className="flex-1">
-        <section className="border-b border-slate-200 bg-white">
+        <section className="border-b border-border bg-card">
           <div className="container flex flex-col gap-3 py-10">
-            <nav className="text-sm text-slate-500" aria-label="Trilha de navegação">
-              <Link href="/" className="hover:text-brand-700">
+            <nav className="text-sm text-muted-foreground" aria-label="Trilha de navegação">
+              <Link href="/" className="hover:text-link">
                 Início
               </Link>
-              <span className="mx-2 text-slate-300">/</span>
-              <span className="text-slate-700">{category.name}</span>
+              <span className="mx-2 text-border">/</span>
+              <span className="text-foreground">{category.name}</span>
             </nav>
-            <h1 className="font-serif text-3xl font-semibold text-slate-900 sm:text-4xl">
+            <h1 className="font-serif text-3xl font-semibold text-foreground sm:text-4xl">
               {category.name}
             </h1>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted-foreground">
               {total === 0
                 ? "Nenhuma peça disponível nesta categoria no momento."
                 : `${total} ${total === 1 ? "peça disponível" : "peças disponíveis"}.`}
@@ -123,12 +130,12 @@ export default async function CategoryPage({
 
         <div className="container py-10">
           {products.length === 0 ? (
-            <div className="py-20 text-center text-slate-500">
+            <div className="py-20 text-center text-muted-foreground">
               <p>Nenhuma peça encontrada nesta página.</p>
               {page > 1 && (
                 <Link
                   href={`/categoria/${category.slug}`}
-                  className="mt-3 inline-block font-medium text-brand-700 hover:underline"
+                  className="mt-3 inline-block font-medium text-link hover:text-link-hover hover:underline"
                 >
                   Voltar ao início da categoria
                 </Link>
@@ -157,7 +164,7 @@ export default async function CategoryPage({
                     Anterior
                   </PaginationLink>
 
-                  <span className="text-sm text-slate-600">
+                  <span className="text-sm text-muted-foreground">
                     Página {page} de {totalPages}
                   </span>
 
@@ -198,8 +205,8 @@ function PaginationLink({
   const className = cn(
     "inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
     disabled
-      ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
-      : "border-slate-200 bg-white text-slate-700 hover:border-brand-300 hover:text-brand-700"
+      ? "cursor-not-allowed border-border bg-muted text-muted-foreground"
+      : "border-border bg-card text-foreground hover:border-primary/40 hover:text-link"
   );
 
   if (disabled) {

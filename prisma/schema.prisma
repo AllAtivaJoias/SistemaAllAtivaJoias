@@ -500,7 +500,27 @@ model AppSettings {
   logoUrl      String @default("")
   logoDarkUrl  String @default("")
   faviconUrl   String @default("")
+  ogImageUrl   String @default("")
   primaryColor String @default("#034742")
+  brandTagline String @default("")
+
+  facebookUrl String @default("")
+  youtubeUrl  String @default("")
+  tiktokUrl   String @default("")
+
+  /// jade | gold | luxury | editorial | modern | elegant | minimal | custom
+  themePreset           String  @default("jade")
+  /// LIGHT | DARK | SYSTEM
+  themeMode             String  @default("LIGHT")
+  themeAllowUserToggle  Boolean @default(false)
+  themeRadius           String  @default("0.3rem")
+  /// COMPACT | DEFAULT | COMFORTABLE
+  themeDensity          String  @default("DEFAULT")
+  fontHeading           String  @default("playfair")
+  fontBody              String  @default("manrope")
+  themeLight            Json    @default("{}")
+  themeDark             Json    @default("{}")
+  themePublishedAt      DateTime?
 
   defaultPrintFormat PrintFormat @default(THERMAL_80MM)
 

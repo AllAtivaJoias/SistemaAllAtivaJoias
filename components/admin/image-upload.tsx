@@ -18,6 +18,20 @@ interface ImageUploadProps {
 const MAX_SIZE_IN_BYTES = 4 * 1024 * 1024; // 4 MB (limite seguro na Vercel)
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
+function formatBytes(size: number): string {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatLabel(type: string): string {
+  if (type === "image/jpeg") return "JPEG";
+  if (type === "image/png") return "PNG";
+  if (type === "image/webp") return "WEBP";
+  if (type === "image/gif") return "GIF";
+  return type || "Imagem";
+}
+
 export function ImageUpload({
   name,
   defaultValue = "",
@@ -27,11 +41,22 @@ export function ImageUpload({
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fileMeta, setFileMeta] = useState<{
+    type: string;
+    size: number;
+  } | null>(null);
+  const [dimensions, setDimensions] = useState<{ w: number; h: number } | null>(
+    null
+  );
   const inputRef = useRef<HTMLInputElement>(null);
 
   function updateUrl(next: string) {
     setUrl(next);
     onChange?.(next);
+    if (!next) {
+      setFileMeta(null);
+      setDimensions(null);
+    }
   }
 
   async function uploadFile(file: File) {
@@ -46,6 +71,7 @@ export function ImageUpload({
       return;
     }
 
+    setFileMeta({ type: file.type, size: file.size });
     setIsUploading(true);
     try {
       const formData = new FormData();
@@ -82,7 +108,7 @@ export function ImageUpload({
   function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (file) void uploadFile(file);
-    event.target.value = ""; // permite reenviar o mesmo arquivo
+    event.target.value = "";
   }
 
   function handleDrop(event: React.DragEvent<HTMLDivElement>) {
@@ -96,24 +122,35 @@ export function ImageUpload({
     inputRef.current?.click();
   }
 
+  const metaParts = [
+    fileMeta ? formatLabel(fileMeta.type) : url ? "Imagem atual" : null,
+    dimensions ? `${dimensions.w}×${dimensions.h}px` : null,
+    fileMeta ? formatBytes(fileMeta.size) : null,
+  ].filter(Boolean);
+
   return (
     <div className="space-y-2">
-      {/* Valor enviado junto com o formulário */}
       <input type="hidden" name={name} value={url} />
 
       {url ? (
-        <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-stone-200 bg-stone-100">
+        <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-border bg-muted">
           <Image
             src={url}
-            alt="Prévia da imagem do produto"
+            alt="Prévia da imagem"
             fill
             sizes="(max-width: 640px) 100vw, 400px"
             className="object-cover"
+            onLoad={(event) => {
+              const img = event.currentTarget;
+              if (img.naturalWidth && img.naturalHeight) {
+                setDimensions({ w: img.naturalWidth, h: img.naturalHeight });
+              }
+            }}
           />
 
           {isUploading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-              <Loader2 className="h-6 w-6 animate-spin text-white" />
+            <div className="absolute inset-0 flex items-center justify-center bg-foreground/40">
+              <Loader2 className="h-6 w-6 animate-spin text-background" />
             </div>
           )}
 
@@ -122,8 +159,9 @@ export function ImageUpload({
               type="button"
               onClick={openFilePicker}
               disabled={isUploading}
-              aria-label="Trocar imagem"
-              className="rounded-md bg-white/90 p-1.5 text-stone-700 shadow-sm transition-colors hover:bg-white"
+              aria-label="Substituir imagem"
+              title="Substituir"
+              className="rounded-md bg-card/90 p-1.5 text-foreground shadow-sm transition-colors hover:bg-card"
             >
               <RefreshCw className="h-4 w-4" />
             </button>
@@ -132,7 +170,8 @@ export function ImageUpload({
               onClick={() => updateUrl("")}
               disabled={isUploading}
               aria-label="Remover imagem"
-              className="rounded-md bg-white/90 p-1.5 text-red-600 shadow-sm transition-colors hover:bg-white"
+              title="Remover"
+              className="rounded-md bg-card/90 p-1.5 text-destructive shadow-sm transition-colors hover:bg-card"
             >
               <X className="h-4 w-4" />
             </button>
@@ -155,22 +194,22 @@ export function ImageUpload({
           className={cn(
             "flex aspect-video w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-4 text-center transition-colors",
             isDragging
-              ? "border-brand-500 bg-brand-50"
-              : "border-stone-300 bg-stone-50 hover:border-brand-400 hover:bg-brand-50/50"
+              ? "border-primary bg-accent"
+              : "border-border bg-muted hover:border-primary/50 hover:bg-accent/50"
           )}
         >
           {isUploading ? (
             <>
-              <Loader2 className="h-7 w-7 animate-spin text-brand-600" />
-              <p className="text-sm text-stone-500">Enviando imagem...</p>
+              <Loader2 className="h-7 w-7 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Enviando imagem...</p>
             </>
           ) : (
             <>
-              <ImagePlus className="h-7 w-7 text-brand-500" />
-              <p className="text-sm font-medium text-stone-700">
+              <ImagePlus className="h-7 w-7 text-primary" />
+              <p className="text-sm font-medium text-foreground">
                 Clique para selecionar ou arraste uma imagem
               </p>
-              <p className="text-xs text-stone-400">
+              <p className="text-xs text-muted-foreground">
                 JPG, PNG, WEBP ou GIF · até 4 MB
               </p>
             </>
@@ -178,15 +217,19 @@ export function ImageUpload({
         </div>
       )}
 
+      {metaParts.length > 0 && (
+        <p className="text-xs text-muted-foreground">{metaParts.join(" · ")}</p>
+      )}
+
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/gif"
         className="hidden"
         onChange={handleInputChange}
       />
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   );
 }

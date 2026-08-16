@@ -17,5 +17,13 @@ export default async function AdminProtectedLayout({
 
   const settings = await getAppSettings();
 
-  return <AdminShell storeName={settings.storeName}>{children}</AdminShell>;
+  return (
+    <AdminShell
+      storeName={settings.storeName}
+      logoUrl={settings.logoUrl || undefined}
+      allowUserToggle={settings.theme.allowUserToggle}
+    >
+      {children}
+    </AdminShell>
+  );
 }

@@ -11,6 +11,7 @@ import {
   type AppSettingsView,
   type PrintProfileView,
 } from "@/lib/app-settings";
+import { parseThemeConfig } from "@/lib/theme/schema";
 
 function toProfileView(row: {
   id: string;
@@ -97,7 +98,12 @@ async function loadAppSettings(): Promise<AppSettingsView> {
     logoUrl: settings.logoUrl,
     logoDarkUrl: settings.logoDarkUrl,
     faviconUrl: settings.faviconUrl,
+    ogImageUrl: settings.ogImageUrl,
     primaryColor: settings.primaryColor,
+    brandTagline: settings.brandTagline,
+    facebookUrl: settings.facebookUrl,
+    youtubeUrl: settings.youtubeUrl,
+    tiktokUrl: settings.tiktokUrl,
     defaultPrintFormat: settings.defaultPrintFormat,
     pricingDefaultMode: settings.pricingDefaultMode,
     pricingDefaultValue: Number(settings.pricingDefaultValue),
@@ -107,6 +113,18 @@ async function loadAppSettings(): Promise<AppSettingsView> {
     productionTrackLoss: settings.productionTrackLoss,
     thermalProfile: thermal,
     a4Profile: a4,
+    theme: parseThemeConfig({
+      themeLight: settings.themeLight,
+      themeDark: settings.themeDark,
+      themePreset: settings.themePreset,
+      themeMode: settings.themeMode,
+      themeAllowUserToggle: settings.themeAllowUserToggle,
+      themeRadius: settings.themeRadius,
+      themeDensity: settings.themeDensity,
+      fontHeading: settings.fontHeading,
+      fontBody: settings.fontBody,
+      primaryColor: settings.primaryColor,
+    }),
   };
 }
 

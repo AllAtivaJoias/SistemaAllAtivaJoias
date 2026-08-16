@@ -7,6 +7,7 @@ import {
   parseAppSettingsForm,
   toPrintContext,
   websiteHref,
+  safeHttpHref,
   whatsappHref,
   FALLBACK_APP_SETTINGS,
 } from "@/lib/app-settings";
@@ -51,6 +52,14 @@ describe("contact hrefs", () => {
   it("normaliza website", () => {
     expect(websiteHref("www.allativa.com.br")).toBe(
       "https://www.allativa.com.br"
+    );
+  });
+
+  it("bloqueia hrefs perigosos", () => {
+    expect(safeHttpHref("javascript:alert(1)")).toBeNull();
+    expect(safeHttpHref("data:text/html,hi")).toBeNull();
+    expect(safeHttpHref("https://facebook.com/loja")).toBe(
+      "https://facebook.com/loja"
     );
   });
 });
