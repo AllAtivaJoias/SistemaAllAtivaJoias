@@ -19,17 +19,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FAILED_JEWELRY = "20260717190000_jewelry_refactor";
 
 function migrateUrl() {
-  const preferred = [
-    process.env.POSTGRES_URL_NON_POOLING,
-    process.env.DATABASE_URL_UNPOOLED,
-    process.env.DIRECT_URL,
-  ].filter(Boolean);
+  const preferred = [process.env.POSTGRES_URL_NON_POOLING].filter(Boolean);
 
-  const fallback = [
-    process.env.POSTGRES_PRISMA_URL,
-    process.env.POSTGRES_URL,
-    process.env.DATABASE_URL,
-  ].filter(Boolean);
+  const fallback = [process.env.POSTGRES_PRISMA_URL].filter(Boolean);
 
   const isPooler = (url) =>
     /pooler\.supabase|[-.]pooler\.|pgbouncer=true/i.test(url);
@@ -39,7 +31,7 @@ function migrateUrl() {
 
   if (!url) {
     console.error(
-      "[database] Defina POSTGRES_URL_NON_POOLING (direta) ou POSTGRES_PRISMA_URL / DATABASE_URL."
+      "[database] Defina POSTGRES_URL_NON_POOLING (direta) e POSTGRES_PRISMA_URL (pooler) do Supabase."
     );
     process.exit(1);
   }
@@ -56,7 +48,6 @@ function prismaEnv(url) {
     ...process.env,
     POSTGRES_URL_NON_POOLING: directUrl,
     POSTGRES_PRISMA_URL: pooled,
-    DATABASE_URL: directUrl,
     ...(needsSsl(url) ? { PGSSLROOTCERT: combinedCaFilePath() } : {}),
   };
 }

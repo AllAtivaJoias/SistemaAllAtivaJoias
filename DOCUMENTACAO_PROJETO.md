@@ -135,7 +135,7 @@ Fontes: `package.json`, `prisma/schema.prisma`, `next.config.mjs`, `auth.config.
 |---|---|---|---|
 | Prisma ORM | `^6.2.1` | Schema, client, migrations | `prisma/`, `lib/prisma.ts` |
 | @prisma/client | `^6.2.1` | Queries | Server Components, actions, APIs |
-| PostgreSQL | — | Banco (Neon/Vercel Postgres/Supabase, conforme env) | `POSTGRES_PRISMA_URL` |
+| PostgreSQL | — | Banco (Supabase via integração Vercel) | `POSTGRES_PRISMA_URL` |
 | tsx | `^4.19.2` | Seed scripts | `prisma/seed.ts`, `prisma/seed-stones.ts` |
 
 ### Autenticação
@@ -364,7 +364,7 @@ url       = env("POSTGRES_PRISMA_URL")        # pooled (runtime)
 directUrl = env("POSTGRES_URL_NON_POOLING")   # direta (migrations)
 ```
 
-⚠️ `.env.example` documenta `DATABASE_URL`, que **não** é lida pelo `schema.prisma`. Em deploy Vercel Postgres as variáveis `POSTGRES_*` costumam ser injetadas automaticamente. Localmente, sem essas vars, o Prisma não conecta.
+⚠️ O projeto usa **somente** `POSTGRES_PRISMA_URL` e `POSTGRES_URL_NON_POOLING` (Supabase). A integração Supabase na Vercel injeta esses nomes automaticamente.
 
 Não há procedures, triggers nem funções SQL customizadas nas migrations. Há queries raw no dashboard.
 
@@ -1656,9 +1656,8 @@ Documentadas em `.env.example` e/ou usadas no código. **Valores reais omitidos.
 
 | Variável | Obrigatória para | Notas |
 |---|---|---|
-| `POSTGRES_PRISMA_URL` | Prisma runtime | schema.prisma `url` |
-| `POSTGRES_URL_NON_POOLING` | migrations | schema `directUrl` |
-| `DATABASE_URL` | citada só no `.env.example` | ⚠️ **não** está no schema Prisma |
+| `POSTGRES_PRISMA_URL` | Prisma runtime | pooler Supabase; schema.prisma `url` |
+| `POSTGRES_URL_NON_POOLING` | migrations | host direto `db.<ref>.supabase.co`; schema `directUrl` |
 | `AUTH_SECRET` | NextAuth | gerar com `npx auth secret` |
 | `ADMIN_EMAIL` | login | comparado após trim/lower |
 | `ADMIN_PASSWORD` | login | texto claro, trim |
@@ -1809,7 +1808,7 @@ Não há `afterprint` automático de concluir pedido.
 
 ## 24. INTEGRAÇÕES EXTERNAS
 
-1. **PostgreSQL** (Neon/Vercel/Supabase conforme env) — persistência.
+1. **Supabase PostgreSQL** — persistência.
 2. **Vercel Blob** — imagens.
 3. **Auth.js** — sessão (biblioteca, não SaaS externo de IdP; sem Google/GitHub OAuth no código).
 4. **Unsplash / placehold.co** — URLs de seed/placeholder.
@@ -1889,9 +1888,7 @@ Não há ERP fiscal, pagamento, correios, WhatsApp API oficial.
 
 ### 27.5 `.env.example` vs schema Prisma
 
-- Example: `DATABASE_URL`
-- Schema: `POSTGRES_PRISMA_URL` + `POSTGRES_URL_NON_POOLING`
-- **Impacto:** setup local falha se seguir só o example.
+Alinhados: `POSTGRES_PRISMA_URL` + `POSTGRES_URL_NON_POOLING` (Supabase). Não use `DATABASE_URL`.
 
 ### 27.6 Custos adicionais vs preço persistido
 
@@ -2013,7 +2010,7 @@ ALLATIVA JOIAS
 │
 └── Integrações
     ├── Vercel Blob
-    └── PostgreSQL (Vercel/Neon/etc.)
+    └── Supabase PostgreSQL (integração Vercel)
 ```
 
 ---
@@ -2044,7 +2041,7 @@ Categorias, Produtos, Insumos (biblioteca + ordens), Ficha Técnica, PDV, Fila d
 ### Banco
 
 12 models: Category, Product, Material, CompositionItem, Stone, Chain, Wire, MetalAlloy, SupplyPattern, SupplyPatternItem, Order, OrderItem.  
-Env de conexão: `POSTGRES_PRISMA_URL` / `POSTGRES_URL_NON_POOLING`, não `DATABASE_URL` do example.
+Env de conexão: `POSTGRES_PRISMA_URL` / `POSTGRES_URL_NON_POOLING` (Supabase).
 
 ### APIs
 

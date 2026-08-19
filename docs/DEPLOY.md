@@ -9,6 +9,12 @@
 
 O script `build` **não** aplica schema. Só gera o client Prisma e compila o Next.js.
 
+## Integrações Vercel
+
+Mantenha **apenas Supabase** (banco) e **Blob** (imagens). Desconecte Neon ou Vercel Postgres se ainda estiverem ligados ao projeto.
+
+Detalhes: [docs/deployment-database.md](deployment-database.md) §5.
+
 ## Variáveis obrigatórias
 
 - `POSTGRES_PRISMA_URL` — conexão pooled (runtime)

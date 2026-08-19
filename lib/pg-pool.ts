@@ -1,18 +1,17 @@
 import { Pool, type PoolConfig } from "pg";
 import { pgClientConfig } from "./pg-ssl.mjs";
 
-// Pool `pg` para o adapter do Prisma. Prefere a URL pooled do runtime
-// (POSTGRES_PRISMA_URL / Neon) e cai para DATABASE_URL.
-export function createNeonPool(): Pool {
-  const connectionString =
-    process.env.POSTGRES_PRISMA_URL ??
-    process.env.NEON_DATABASE_URL ??
-    process.env.NEON_POSTGRES_PRISMA_URL ??
-    process.env.DATABASE_URL;
+/**
+ * Pool `pg` para o adapter do Prisma (runtime serverless).
+ * Banco oficial do projeto: Supabase PostgreSQL via integração Vercel.
+ * Usa somente POSTGRES_PRISMA_URL (URL pooled do Supabase).
+ */
+export function createPgPool(): Pool {
+  const connectionString = process.env.POSTGRES_PRISMA_URL;
 
   if (!connectionString) {
     throw new Error(
-      "Nenhuma connection string PostgreSQL encontrada (POSTGRES_PRISMA_URL ou DATABASE_URL)."
+      "POSTGRES_PRISMA_URL não definida. Conecte o Supabase na Vercel (Storage → Database) ou configure no .env."
     );
   }
 

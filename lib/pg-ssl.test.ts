@@ -12,12 +12,11 @@ describe("needsSsl", () => {
     expect(needsSsl("postgresql://postgres@localhost:5432/app")).toBe(false);
   });
 
-  it("exige SSL em hosts gerenciados", () => {
+  it("exige SSL em hosts Supabase", () => {
     expect(
       needsSsl("postgresql://u:p@aws-0-us-east-1.pooler.supabase.com:5432/postgres")
     ).toBe(true);
     expect(needsSsl("postgresql://u:p@db.abcdefgh.supabase.co:5432/postgres")).toBe(true);
-    expect(needsSsl("postgresql://u:p@ep-example.neon.tech/neondb")).toBe(true);
   });
 
   it("respeita sslmode na URL", () => {

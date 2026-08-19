@@ -2,7 +2,7 @@
 
 Este documento descreve como o `allativa-joias` conecta no PostgreSQL (Prisma + `pg`) em Development, Preview e Production na Vercel.
 
-Não copie senhas, tokens ou `DATABASE_URL` reais para este arquivo.
+Não copie senhas, tokens ou connection strings reais para este arquivo.
 
 ## 1. Como o PostgreSQL é conectado
 
@@ -15,15 +15,12 @@ O schema Prisma usa duas variáveis:
 
 O runtime **não** usa o engine nativo do Prisma para queries. `lib/prisma.ts` abre um `Pool` de `pg` (`lib/pg-pool.ts`) com o adapter `@prisma/adapter-pg`.
 
-Aliases aceitos pelo script de migration (`scripts/migrate-deploy.mjs`), nesta ordem de preferência para a URL **direta**:
+O script de migration (`scripts/migrate-deploy.mjs`) usa **somente**:
 
-1. `POSTGRES_URL_NON_POOLING`
-2. `DATABASE_URL_UNPOOLED`
-3. `DIRECT_URL`
+1. `POSTGRES_URL_NON_POOLING` (preferida — host direto)
+2. `POSTGRES_PRISMA_URL` (fallback, se não for pooler)
 
-Fallback (evitar pooler para migrate): `POSTGRES_PRISMA_URL`, `POSTGRES_URL`, `DATABASE_URL`.
-
-Provedor identificado neste projeto: **Supabase** (host `*.supabase.co` / `*.pooler.supabase.com`). Neon e AWS RDS também são reconhecidos pelo módulo TLS.
+Provedor oficial deste projeto: **Supabase PostgreSQL** (integração Vercel). Hosts: `*.supabase.co` / `*.pooler.supabase.com`.
 
 ## 2. SSL/TLS
 
@@ -31,7 +28,7 @@ A validação de certificado **permanece ativa**.
 
 Comportamento (`lib/pg-ssl.mjs`):
 
-1. Detecta se o host exige TLS (Supabase, Neon, RDS, ou `sslmode=require|verify-ca|verify-full`).
+1. Detecta se o host exige TLS (Supabase ou `sslmode=require|verify-ca|verify-full`).
 2. Loopback (`localhost` / `127.0.0.1`) **sem** `sslmode` → sem SSL (CI / Postgres local).
 3. Para o driver `pg`, **remove** `sslmode` da URL e passa um objeto `ssl` explícito. Isso evita o bug em que `pg-connection-string` v2 trata `require` como `verify-full` e **ignora** `ssl.ca`.
 4. `ssl.rejectUnauthorized` é `true`.
@@ -41,7 +38,6 @@ Comportamento (`lib/pg-ssl.mjs`):
 CAs versionadas (públicas, não são secrets):
 
 - `certs/supabase-prod-ca-2021.crt` — [Supabase SSL Enforcement](https://supabase.com/docs/guides/platform/ssl-enforcement)
-- `certs/aws-rds-global-bundle.pem` — [AWS RDS global bundle](https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem)
 
 CA extra (opcional, se o dashboard do projeto publicar um certificado diferente):
 
@@ -88,12 +84,25 @@ Migrations continuam **no build** deste projeto porque Preview/Production precis
 | `AUTH_SECRET` | sim | sim | sim | Auth.js |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | bootstrap | bootstrap | bootstrap | Só se a tabela `User` estiver vazia |
 | `BLOB_READ_WRITE_TOKEN` | se usar Blob | se usar Blob | se usar Blob | Upload de imagens |
-| `POSTGRES_SSL_CA` | opcional | opcional | opcional | PEM extra |
+| `POSTGRES_SSL_CA` | opcional | opcional | opcional | PEM extra do Supabase |
 | `PGSSLROOTCERT` | opcional | opcional | opcional | O script já aponta para o bundle combinado |
 
-`DIRECT_URL` é aceita pelo script de migrate como alias da URL direta. O `schema.prisma` **não** lê `DIRECT_URL` nem `DATABASE_URL`.
+Não use `DATABASE_URL`, `DIRECT_URL` nem integração Neon/Vercel Postgres — o código lê apenas `POSTGRES_*`.
 
-## 5. Configurar a Vercel
+## 5. Integrações Vercel (Storage)
+
+Mantenha **apenas**:
+
+| Integração | Função |
+|---|---|
+| **Supabase** (Database) | PostgreSQL — injeta `POSTGRES_PRISMA_URL` e `POSTGRES_URL_NON_POOLING` |
+| **Blob** (Storage) | Imagens — injeta `BLOB_READ_WRITE_TOKEN` |
+
+**Desconecte** integrações extras (Neon, Vercel Postgres, etc.). Duas integrações de banco conflitam nas variáveis de ambiente.
+
+Se a tela Blob mostrar “já conectado”, **não reconecte** — confirme que `BLOB_READ_WRITE_TOKEN` existe em Settings → Environment Variables.
+
+## 6. Configurar variáveis na Vercel
 
 ```text
 Vercel → Project → Settings → Environment Variables
@@ -120,7 +129,7 @@ Recomendações na URL (sem colar senha aqui):
 
 O certificado CA público já vai no repositório (`certs/`). Não é necessário colar o PEM na Vercel, salvo se o provedor rotacionar para uma CA ainda não versionada.
 
-## 6. Build local
+## 7. Build local
 
 ```bash
 npx prisma validate
@@ -136,7 +145,7 @@ npm run build:production
 
 Postgres só local (CI): URL sem `sslmode`, host `127.0.0.1` — TLS não é forçado.
 
-## 7. Diagnosticar falhas de conexão
+## 8. Diagnosticar falhas de conexão
 
 O script registra apenas:
 
@@ -163,7 +172,7 @@ Mensagens são sanitizadas (sem senha / URL completa).
 | Timeout IPv6 | Host `db.<ref>.supabase.co` em rede só IPv4 | Usar pooler **session** (5432) só se não houver add-on IPv4; migrate prefere direta |
 | Prisma migrate no pooler | DDL no transaction pooler | `POSTGRES_URL_NON_POOLING` deve ser a URL direta |
 
-## 8. Configurações que NÃO devem ser usadas
+## 9. Configurações que NÃO devem ser usadas
 
 ```text
 NODE_TLS_REJECT_UNAUTHORIZED=0
@@ -173,7 +182,7 @@ sslmode=disable          (em hosts gerenciados)
 uselibpqcompat=true      (só para enfraquecer require → não verificar CA)
 ```
 
-## 9. Por que `rejectUnauthorized: false` não deve ser utilizado
+## 10. Por que `rejectUnauthorized: false` não deve ser utilizado
 
 `rejectUnauthorized: false` aceita **qualquer** certificado apresentado pelo servidor. Isso permite man-in-the-middle: um atacante na rota até o Postgres (ou um DNS/proxy comprometido) pode apresentar um certificado próprio, decifrar a sessão e ler ou alterar queries (incluindo senhas de usuários e dados de pedidos).
 

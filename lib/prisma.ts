@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { attachDatabasePool } from "@vercel/functions";
-import { createNeonPool } from "./pg-pool";
+import { createPgPool } from "./pg-pool";
 
 import { serializeDecimals } from "@/lib/decimal";
 
@@ -33,7 +33,7 @@ const globalForPrisma = globalThis as unknown as {
 
 function getPool(): Pool {
   if (!globalForPrisma.pgPool) {
-    const pool = createNeonPool();
+    const pool = createPgPool();
     attachDatabasePool(pool);
     globalForPrisma.pgPool = pool;
   }
@@ -62,7 +62,7 @@ function getPrisma(): AppPrisma {
  * Leituras passam a number na borda da aplicação; o banco permanece DECIMAL.
  * TypeScript ainda descreve Decimal; converta com Number() na borda RSC → client.
  *
- * O client é lazy: `next build` importa o módulo sem exigir DATABASE_URL.
+ * O client é lazy: `next build` importa o módulo sem exigir POSTGRES_PRISMA_URL.
  */
 export const prisma: AppPrisma = new Proxy({} as AppPrisma, {
   get(_target, prop, receiver) {

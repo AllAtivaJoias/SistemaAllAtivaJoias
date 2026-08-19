@@ -2,7 +2,7 @@
 
 ERP operacional de joalheria: vitrine pública, insumos, ficha técnica (BOM), precificação, PDV, pedidos, requisição de materiais e dashboard.
 
-Stack: **Next.js 15** (App Router) · **React 19** · **TypeScript** · **Prisma** · **PostgreSQL** · **Auth.js** · **Vercel Blob**.
+Stack: **Next.js 15** (App Router) · **React 19** · **TypeScript** · **Prisma** · **Supabase PostgreSQL** · **Auth.js** · **Vercel Blob**.
 
 Single-tenant. Um administrador persistido na tabela `User` (senha com bcrypt).
 
@@ -11,8 +11,8 @@ Single-tenant. Um administrador persistido na tabela `User` (senha com bcrypt).
 ## Requisitos
 
 - Node.js 20+
-- PostgreSQL 15+ (local ou Vercel/Neon Postgres)
-- Conta Vercel Blob para upload de imagens (opcional em desenvolvimento)
+- Supabase PostgreSQL (integração Vercel) ou Postgres local para desenvolvimento
+- Vercel Blob para upload de imagens (opcional em desenvolvimento)
 
 ---
 
@@ -67,6 +67,8 @@ Rotas `/admin/*` exigem sessão (middleware + layout). APIs administrativas usam
 ---
 
 ## Deploy (Vercel)
+
+Integrações: **Supabase** (banco) + **Blob** (imagens). Desconecte Neon ou Vercel Postgres se ainda estiverem ligados ao projeto.
 
 1. Variáveis: `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`, `AUTH_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` (bootstrap), `BLOB_READ_WRITE_TOKEN`.
 2. `vercel.json` usa `npm run build:production` → `scripts/migrate-deploy.mjs` + generate + `next build`.
